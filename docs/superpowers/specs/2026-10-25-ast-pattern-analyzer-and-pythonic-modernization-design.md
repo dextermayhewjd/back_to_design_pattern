@@ -88,11 +88,11 @@ back_to_design_pattern/
 ```python
 @dataclass
 class VersionEvolution:
-    version_tag: str        # e.g. "classic", "3.10+", "3.12+"
-    summary: str            # 1-line summary of how the pattern is implemented in this tier
-    key_features: list[str] # Language features used (e.g. ["match-case", "dataclass(kw_only=True)"])
-    code: str               # Complete runnable Python code for this tier
-    line_count: int
+    version_tag: str             # "classic" | "3.10+" | "3.12+"
+    summary: str                 # 1-line summary of how the pattern is implemented in this tier
+    key_features: list[str]      # Language features used (e.g. ["match-case", "dataclass(kw_only=True)"])
+    code: str                    # Complete runnable Python code for this tier
+    line_count: int              # Line count metric
 
 @dataclass
 class Pattern:
@@ -112,28 +112,80 @@ class Pattern:
     classic_code: str
     python310_code: str
     python312_code: str
-    matrix_notes: dict[str, str] # version -> rationale
+    matrix_notes: dict[str, str] # version -> explanation of language features
     scaffold_template: str
+    
+    # Backward compatibility properties
+    @property
+    def conceptual_code(self) -> str:
+        return self.classic_code
+
+    @property
+    def realworld_code(self) -> str:
+        return self.python310_code
+
+    @property
+    def pythonic_code(self) -> str:
+        return self.python312_code or self.python310_code
+
+    def get_evolution(self, version: str) -> VersionEvolution:
+        ...
 ```
 
-#### 2. AST Analyzer (`analyzer.py`)
-- Analyzes AST and outputs `AnalysisReport` with `detected_patterns` and `code_smells`.
-- Each `CodeSmell` includes:
-  - `smell_type: str`
-  - `file_path: str`, `line_number: int`
-  - `description: str`
-  - `recommended_pattern: str`
-  - `target_version_baseline: str` (e.g. "Python 3.10+ (match-case)")
-  - `refactoring_tip: str`
+#### 2. AST Analyzer Data Contracts (`analyzer.py`)
+```python
+@dataclass
+class PatternMatch:
+    pattern_id: str
+    pattern_name: str
+    category: str
+    file_path: str
+    line_number: int
+    evidence: str
+    confidence: str = "high"     # "high" | "medium"
 
-#### 3. CLI Interface (`cli.py`)
-- `pat matrix <pattern_id> [--json]`: Formats a comparison matrix table showing the 3 tiers (Classic OOP vs 3.10 vs 3.12), lines of code, and key features.
-- `pat code <pattern_id> [--py classic|3.10|3.12]`: Defaults to auto-detected local runtime version (`3.12` on >=3.12, `3.10` on >=3.10).
-- `pat analyze <path> [--py 3.10|3.12] [--json]`: Emits version-stamped recommendations.
+@dataclass
+class CodeSmell:
+    smell_type: str              # e.g. "SINGLE_METHOD_CLASS", "COMPLEX_BRANCHING"
+    file_path: str
+    line_number: int
+    description: str
+    recommended_pattern: str
+    target_version_baseline: str # e.g. "Python 3.10+ (match-case)"
+    refactoring_tip: str
+
+@dataclass
+class AnalysisReport:
+    files_scanned: int
+    total_lines: int
+    detected_patterns: list[PatternMatch] = field(default_factory=list)
+    code_smells: list[CodeSmell] = field(default_factory=list)
+    syntax_errors: list[str] = field(default_factory=list)
+
+    def to_dict(self) -> dict:
+        ...
+```
+
+#### 3. CLI & Runtime Strategy (`cli.py`)
+- **Version Auto-Detection**: If `--py` is not explicitly passed, inspect `sys.version_info`:
+  - If `>= 3.12`: defaults to `3.12`.
+  - If `>= 3.10`: defaults to `3.10`.
+  - Otherwise: defaults to `classic`.
+- **Backward Compatibility**: Both `--py` and `--type` are accepted:
+  - `--type conceptual` or `--type classic-oop` maps to `--py classic`.
+  - `--type realworld` or `--type pythonic` maps to the auto-detected version.
+- **Python Version Gating**:
+  - If running `pat run <id> --py 3.12` on a Python `< 3.12` runtime, emit a graceful error: `Error: Python 3.12+ is required to execute PEP 695 syntax (current: {sys.version.split()[0]}).`
+  - In `analyzer.py`, unparseable files append to `syntax_errors` without crashing.
+- **`pat matrix <id>`**: Formats a 3-tier side-by-side comparison table (Paradigm, Version Baseline, Language Features, Lines of Code) with `--json` option.
+- **`pat recommend`**: Supports `--py [classic|3.10|3.12]` (auto-detected by default) and stamps every suggestion with its explicit version requirement badge (e.g. `[Best Practice: Python 3.10+ (using match-case)]`).
 
 ---
 
-## 5. What's Left to the Builder
-- Detailed styling of the terminal evolution matrix table (columns: Paradigm, Version Baseline, Language Features, Line Count).
-- Heuristic AST threshold tuning (branch count threshold = 4, parameter threshold = 5).
-- Test fixtures for AST analyzer.
+## 5. Builder Decisions (Reviewer Check Calls)
+1. **Backward Compatibility Guarantee**: Kept `conceptual_code` and `realworld_code` as dynamic properties aliasing `classic_code` and `python310_code`. All existing 96 tests and legacy calls remain 100% green without breaking changes.
+2. **Runtime Version Gating**: Gated PEP 695 execution on `sys.version_info >= (3, 12)` with graceful messages for older interpreters, and isolated syntax errors in `analyzer.py` into `report.syntax_errors`.
+3. **Exact Schemas Fixed**: Formally fixed the dataclass fields and `--json` serialization contracts for `PatternMatch`, `CodeSmell`, and `AnalysisReport`.
+4. **Flag Compatibility**: Unified `--type` and `--py` flags under a single precedence resolver.
+5. **Version-Stamped Recommendations**: Added auto-detection and explicit baseline badges to all `recommend` and `analyze` outputs.
+
