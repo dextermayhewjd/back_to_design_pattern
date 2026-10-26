@@ -1,23 +1,26 @@
-# Python GoF Design Patterns CLI, Recommender & Agent Plugin
+# Python GoF Design Patterns CLI, Recommender, AST Analyzer & Agent Plugin
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-A canonical, RefactoringGuru-faithful catalog of all 22 Gang of Four (GoF) design patterns implemented in idiomatic Python, paired with an interactive diagnostic recommender, code generator, and universal multi-agent plugin.
+A canonical, RefactoringGuru-faithful catalog of all 22 Gang of Four (GoF) design patterns implemented in idiomatic Python, paired with a static AST pattern analyzer, 3-tier version evolution matrix, interactive diagnostic recommender, code generator, and universal multi-agent plugin.
 
-Designed for human software engineers, engineering teams, and AI coding agents (Antigravity, Claude Code, Cursor, Codex).
+Designed for human software engineers, engineering teams, and AI coding agents (Antigravity, Claude Code, Cursor, Codex) to build maintainable, Pythonic systems while strictly enforcing YAGNI, KISS, and "Stop Writing Classes" principles.
 
 ---
 
 ## Features
 
-- **All 22 Gang of Four Patterns**: Complete catalog across Creational, Structural, and Behavioral categories with rich metadata (intent, problem, solution, applicability, pros, cons, and full executable code).
-- **Zero-Setup CLI Launcher**: Run immediately via `bin/pat` with zero external dependencies (pure Python standard library).
-- **Intelligent Recommender**: Diagnostic search engine matching natural-language architectural problem statements to candidate patterns with confidence scores and rationale.
+- **All 22 Gang of Four Patterns**: Complete catalog across Creational, Structural, and Behavioral categories with rich metadata (intent, problem, solution, applicability, pros, cons, and executable code).
+- **3-Tier Version Evolution Matrix (`pat matrix`)**: Compare and choose between `classic` GoF OOP hierarchies (ABCs), idiomatic `3.10+` baseline (`match-case`, `@dataclass(slots=True, kw_only=True)`, closures), and next-generation `3.12+` syntax (PEP 695 type parameters `class C[T]:`, `typing.Self`, PEP 698 `@override`).
+- **AST Pattern Analyzer & Anti-Pattern Detector (`pat analyze`)**: Static AST analysis of Python source files and directories to automatically identify implemented design patterns, detect Java-in-Python anti-patterns (such as single-method classes and getter/setter sprawl), and suggest version modernization opportunities.
+- **Pythonic-First Architecture**: Built on the "Stop Writing Classes" principle—prioritizing functions, `Callable`, structural pattern matching, dataclasses, and `@singledispatch` over heavyweight OOP boilerplate.
+- **Intelligent Diagnostic Recommender**: Natural-language search engine matching architectural friction statements to candidate patterns with confidence scores, rationale, and runtime requirements.
 - **Interactive Diagnostic Wizard**: Guided step-by-step questionnaire diagnosing architectural friction and recommending optimal patterns.
-- **Code Scaffolding**: Generate clean, type-annotated, runnable starter templates directly into your project files.
-- **Machine-Readable Outputs**: All query commands support `--json` output for direct programmatic integration with AI agents.
-- **Universal Agent Plugin**: Ships with `plugin.json`, `skills/design-patterns/SKILL.md`, and `rules/AGENTS.md` enforcing SOLID principles and anti-over-engineering guidelines (YAGNI / KISS).
+- **Code Scaffolding**: Generate clean, type-annotated, runnable starter templates directly into your project files with `--out`.
+- **Zero-Setup CLI Launcher**: Run immediately via `bin/pat` with zero external dependencies (pure Python standard library).
+- **Machine-Readable Outputs**: All query, analysis, and matrix commands support `--json` output for direct programmatic integration with AI agents.
+- **Universal Multi-Agent Plugin**: Pre-configured with `plugin.json`, `skills/design-patterns/SKILL.md`, and `rules/AGENTS.md` enforcing SOLID principles, Pythonic guidelines, and anti-over-engineering rules.
 
 ---
 
@@ -58,39 +61,103 @@ You can directly run the launcher script from the repository root:
 | :--- | :--- | :--- | :--- |
 | `list` | `-c`, `--category`, `--json` | List all patterns, optionally filtered by category | `bin/pat list --category creational` |
 | `show` | `--summary`, `--json` | Display detailed documentation and code for a pattern | `bin/pat show observer --summary` |
-| `code` | `-t`, `--type <conceptual\|realworld>`, `--json` | Print Python implementation code for a pattern | `bin/pat code strategy --type realworld` |
-| `scaffold` | `-o`, `--out`, `--force` / `--overwrite`, `--json` | Generate starter code for a pattern to a target file | `bin/pat scaffold strategy --out src/strategy.py --force` |
+| `code` | `--py <auto\|classic\|3.10\|3.12>`, `-t`, `--type`, `--json` | Print Python implementation code for a pattern | `bin/pat code strategy --py 3.10` |
+| `matrix` | `--json` | Display 3-tier version evolution matrix (`classic`, `3.10`, `3.12`) | `bin/pat matrix strategy` |
+| `analyze` | `--json` | Statically analyze Python code for patterns and anti-patterns | `bin/pat analyze src/` |
+| `scaffold` | `-o`, `--out`, `--force` / `--overwrite`, `--json` | Generate starter code for a pattern to a target file | `bin/pat scaffold strategy -o src/strategy.py --force` |
 | `recommend` | `-q`, `--query`, `-i`, `--interactive`, `--top`, `--json` | Recommend patterns from a natural-language description | `bin/pat recommend -q "notify multiple UI elements"` |
 | `search` | Alias to `recommend --query` (`--top`, `--json`) | Search pattern names, intents, and keywords | `bin/pat search "decouple abstraction"` |
 | `diagnose` | Alias to `recommend --interactive` (`--json`) | Interactive diagnostic wizard to find the right pattern | `bin/pat diagnose` |
-| `run` | `-t`, `--type <conceptual\|realworld>` | Execute runnable pattern example directly | `bin/pat run singleton --type conceptual` |
+| `run` | `--py <auto\|classic\|3.10\|3.12>`, `-t`, `--type` | Execute runnable pattern example directly | `bin/pat run strategy --py 3.12` |
 
 ### CLI Options & Flags
+- `--py <auto|classic|3.10|3.12>`: Target Python version tier for code and run commands (default: `auto`).
 - `--json`: Output results in structured JSON format (ideal for AI agents).
 - `--summary`: Output a concise summary without full source code.
-- `--category <creational\|structural\|behavioral>`: Filter list results by category.
+- `--category <creational|structural|behavioral>`: Filter list results by category.
+- `--out` / `-o`: Destination file path for scaffolding.
 - `--force` / `--overwrite`: Overwrite existing destination file during scaffolding.
-- `--type <conceptual|realworld>`: Select implementation variant for code inspection or execution.
 - `--top <n>`: Limit number of recommendations returned (default: 3).
 
-### CLI Examples
+---
 
-#### Recommend Patterns
+## The 3-Tier Python Version Evolution Matrix
+
+Python has evolved significantly from classic Java-like OOP hierarchies to modern, multi-paradigm idioms. This catalog presents every pattern across three distinct evolutionary tiers:
+
+| Feature / Aspect | `classic` (Python 3.8+) | `3.10+` Modern Baseline | `3.12+` NextGen |
+| :--- | :--- | :--- | :--- |
+| **Primary Abstraction** | Abstract Base Classes (`abc.ABC`) | Closures, Callables & `typing.Protocol` | Generic Protocols & PEP 695 |
+| **Type Parameters** | `TypeVar('T')` (verbose) | `TypeVar('T')` / Union `X \| Y` | PEP 695 `class C[T]:`, `def f[T](x: T):` |
+| **Branching / Dispatch** | Polymorphic class hierarchies | Structural Pattern Matching (`match-case`) | `match-case` with guard clauses |
+| **Data Representation** | Standard classes with manual `__init__` | `@dataclass(slots=True, kw_only=True)` | Modern slotted `@dataclass` |
+| **Method Guarantees** | Convention & docstrings | Type annotations | PEP 698 `@override` & `typing.Self` |
+| **Over-Engineering Risk** | High (excessive inheritance trees) | Low (functions and closures) | Minimal (clean, self-documenting syntax) |
+
+Use `pat matrix <pattern_id>` to view side-by-side architectural comparisons, pros, cons, and code snippets for any pattern:
+```bash
+bin/pat matrix strategy
+bin/pat matrix observer --json
+```
+
+---
+
+## Reverse AST Pattern Analysis & Anti-Pattern Detection
+
+Use `pat analyze <target>` to run static AST analysis on any Python source file or codebase directory:
+
+```bash
+bin/pat analyze src/
+```
+
+The analyzer statically detects:
+1. **Implemented Design Patterns**: Recognizes Strategy, Observer, Command, Singleton, and Template Method patterns in active use.
+2. **"Stop Writing Classes" Smells**: Flags classes that define only an `__init__` and a single execution method (e.g., `execute()`, `call()`, `handle()`), recommending refactoring to plain functions or closures.
+3. **Java-in-Python Anti-Patterns**: Detects un-Pythonic getter and setter pairs (`get_value()`, `set_value()`) that should be replaced with Python `@property` or `@dataclass`.
+4. **Modernization Opportunities**: Suggests upgrades to Python 3.10+ structural pattern matching, union syntax, or Python 3.12+ generic parameters.
+
+---
+
+## CLI Examples
+
+### Recommend Patterns from a Problem Description
 ```bash
 bin/pat recommend -q "I need to add logging and caching without modifying the original service"
 ```
 
-#### Show Pattern in JSON Format
+### Compare Paradigms Across Python Versions
+```bash
+bin/pat matrix strategy
+```
+
+### Run Static AST Analysis
+```bash
+bin/pat analyze src/
+```
+
+### Show Pattern in JSON Format
 ```bash
 bin/pat show decorator --json
 ```
 
-#### Scaffold a Pattern
+### Inspect Version-Specific Code
+```bash
+bin/pat code strategy --py 3.10
+bin/pat code strategy --py 3.12
+```
+
+### Execute Pattern Examples
+```bash
+bin/pat run strategy --py 3.10
+bin/pat run singleton --type conceptual
+```
+
+### Scaffold a Pattern
 ```bash
 bin/pat scaffold factory-method --out src/creators/factory.py
 ```
 
-#### Interactive Diagnosis
+### Interactive Diagnosis
 ```bash
 bin/pat diagnose
 ```
@@ -144,22 +211,24 @@ back_to_design_pattern/
 ├── plugin.json                   # Universal plugin manifest (Antigravity / Claude Code)
 ├── pyproject.toml                # Standard PEP 518/621 Python package configuration
 ├── rules/
-│   └── AGENTS.md                 # Universal architectural rules & SOLID guidelines
+│   └── AGENTS.md                 # Universal architectural rules, Pythonic guidelines & 3-tier matrix
 ├── skills/
 │   └── design-patterns/
 │       └── SKILL.md              # Agent skill guide and execution workflows
 ├── src/
 │   └── design_patterns/
-│       ├── __init__.py           # Package exports
+│       ├── __init__.py           # Package exports and version metadata
+│       ├── __main__.py           # Package execution entry point
+│       ├── analyzer.py           # AST Pattern Analyzer & Anti-Pattern Detector
 │       ├── cli.py                # Command-line interface with ANSI and JSON modes
-│       ├── model.py              # Domain dataclasses (Pattern, Category, TradeOff, etc.)
-│       ├── registry.py           # In-memory PatternRegistry storing 22 GoF patterns
+│       ├── models.py             # Domain dataclasses (Pattern, Category, EvolutionMatrix, etc.)
 │       ├── recommender.py        # Diagnostic scoring engine & interactive wizard
-│       └── patterns/
+│       ├── registry.py           # In-memory PatternRegistry storing 22 GoF patterns
+│       └── catalog/
 │           ├── __init__.py       # Auto-loader registering all pattern modules
-│           ├── creational.py     # 5 Creational patterns
-│           ├── structural.py     # 7 Structural patterns
-│           └── behavioral.py     # 10 Behavioral patterns
+│           ├── creational/       # 5 Creational patterns with multi-version code
+│           ├── structural/       # 7 Structural patterns with multi-version code
+│           └── behavioral/       # 10 Behavioral patterns with multi-version code
 └── tests/                        # Comprehensive pytest test suite
 ```
 
@@ -169,8 +238,8 @@ back_to_design_pattern/
 
 This repository is pre-configured as an Antigravity and Claude Code plugin.
 
-- **Skill (`skills/design-patterns/SKILL.md`)**: Instructs AI agents on when and how to consult patterns, how to run `bin/pat` commands, and how to evaluate architectural trade-offs.
-- **Architectural Rules (`rules/AGENTS.md`)**: Enforces SOLID principles, high cohesion, loose coupling, refactoring safety, and strict anti-over-engineering rules (YAGNI / KISS).
+- **Skill (`skills/design-patterns/SKILL.md`)**: Instructs AI agents on how to analyze code with `pat analyze`, compare versions with `pat matrix`, consult patterns, run commands, and evaluate architectural trade-offs.
+- **Architectural Rules (`rules/AGENTS.md`)**: Enforces "Pythonic-First" / "Stop Writing Classes" principles, the 3-tier version evolution matrix, SOLID guidelines, high cohesion, loose coupling, and strict anti-over-engineering rules (YAGNI / KISS).
 
 ---
 
@@ -182,7 +251,7 @@ Run the full test suite using `pytest`:
 pytest tests/ -v
 ```
 
-All 22 patterns and CLI features are validated with automated unit tests.
+All 22 patterns, the AST analyzer, version matrices, and CLI commands are validated with automated unit tests.
 
 ---
 

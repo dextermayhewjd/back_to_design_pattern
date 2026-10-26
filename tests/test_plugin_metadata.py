@@ -24,6 +24,9 @@ def test_skill_md_valid():
     assert "bin/pat recommend" in content
     assert "bin/pat show" in content
     assert "bin/pat scaffold" in content
+    assert "bin/pat analyze" in content or "pat analyze" in content
+    assert "bin/pat matrix" in content or "pat matrix" in content
+    assert "--py" in content
     assert "YAGNI" in content or "KISS" in content
 
 
@@ -36,6 +39,13 @@ def test_rules_agents_md_valid():
     assert "Coupling" in content or "coupling" in content
     assert "Cohesion" in content or "cohesion" in content
     assert "YAGNI" in content or "KISS" in content
+    assert "Pythonic-First" in content
+    assert "Stop Writing Classes" in content or "stop writing classes" in content.lower()
+    assert "classic" in content.lower()
+    assert "3.10" in content
+    assert "3.12" in content
+    assert "pat analyze" in content
+    assert "Requires Python" in content
 
 
 def test_readme_md_valid():
@@ -46,8 +56,18 @@ def test_readme_md_valid():
     assert "pip install ." in content
     assert "bin/pat" in content or "pat" in content
     assert "Architecture" in content or "architecture" in content
-    for cmd in ["list", "show", "search", "recommend", "scaffold", "diagnose"]:
+    for cmd in [
+        "list",
+        "show",
+        "search",
+        "recommend",
+        "scaffold",
+        "diagnose",
+        "analyze",
+        "matrix",
+    ]:
         assert cmd in content
+    assert "--py" in content
 
 
 def test_version_synchronization():

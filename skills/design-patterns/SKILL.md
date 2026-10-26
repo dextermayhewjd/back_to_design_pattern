@@ -1,15 +1,17 @@
 ---
 name: design-patterns
 description: >-
-  Architectural design pattern catalog, diagnostic recommender, and code generator
-  based on Gang of Four (GoF) and RefactoringGuru standards. Use during planning,
-  feature design, or refactoring to select appropriate patterns, evaluate trade-offs,
-  and scaffold clean Python implementations while strictly enforcing YAGNI and KISS.
+  Architectural design pattern catalog, diagnostic recommender, AST analyzer, and code
+  generator based on Gang of Four (GoF) and RefactoringGuru standards with Pythonic-First
+  modernization. Use during planning, reverse analysis, feature design, or refactoring
+  to analyze codebases, select appropriate patterns, evaluate 3-tier version trade-offs
+  (classic, 3.10, 3.12), and scaffold clean Python implementations while strictly
+  enforcing YAGNI and KISS.
 ---
 
 # Design Patterns Skill Guide for Coding Agents
 
-This skill enables agents to make principled architectural decisions, consult canonical Gang of Four (GoF) design patterns, diagnose architectural friction, and scaffold production-ready Python implementations.
+This skill enables agents to make principled architectural decisions, consult canonical Gang of Four (GoF) design patterns, analyze existing codebases for patterns and anti-patterns, compare implementations across modern Python versions, and scaffold production-ready Python code.
 
 ---
 
@@ -22,12 +24,14 @@ Design patterns are reusable solutions to recurring design problems within a giv
    - Do NOT introduce patterns speculatively for hypothetical future requirements.
    - If a simple function or dictionary lookup solves the current problem, use it.
    - Do NOT apply patterns to one-off scripts, simple CLI tools, or straightforward data pipelines.
-2. **KISS (Keep It Simple, Stupid)**:
-   - Prefer standard Python idioms over heavyweight OOP hierarchies:
-     - Use first-class functions or lambdas instead of single-method Strategy classes when behavior is simple.
-     - Use `dataclasses` or named tuples instead of complex Builders when object creation is flat.
-     - Use dictionary dispatch (`handlers[event_type](payload)`) instead of Chain of Responsibility or State patterns if transitions are static.
-     - Use context managers (`with` statement) instead of manual lifecycle management.
+2. **KISS (Keep It Simple, Stupid) & Pythonic-First**:
+   - Modern Python is not Java: prefer Pythonic primitives over heavyweight OOP hierarchies:
+     - Use first-class functions, closures, or `Callable` instead of single-method Strategy or Command classes ("Stop Writing Classes").
+     - Use `dataclasses` (with `slots=True`, `kw_only=True`) or named tuples instead of complex Builders when object creation is flat.
+     - Use structural pattern matching (`match-case`) instead of elaborate Visitor or State hierarchies where states are closed and discrete.
+     - Use `@singledispatch` for overloading instead of manual class dispatch trees.
+     - Use context managers (`with` statement) instead of manual Proxy or lifecycle wrappers.
+     - Use generator functions (`yield`) instead of full Iterator classes.
 3. **When to Apply a Pattern**:
    - Apply a pattern ONLY when you encounter concrete architectural pain points:
      - Multiple variants of algorithms needing runtime interchangeability (Strategy).
@@ -39,43 +43,93 @@ Design patterns are reusable solutions to recurring design problems within a giv
 
 ---
 
-## 2. CLI Tooling: `bin/pat`
+## 2. The 3-Tier Python Version Evolution Matrix
 
-The repository provides a zero-setup executable CLI at `bin/pat` (as well as `pat` when installed as a Python package). AI agents should use `bin/pat` or `pat` to inspect and scaffold patterns directly.
+The catalog provides 3 distinct paradigms for patterns to fit any Python deployment target:
 
-### CLI Usage for Agents
+1. **`classic`**: Classic Gang of Four OOP class hierarchies using `abc.ABC`, `@abstractmethod`, and nominal inheritance. Ideal for legacy compatibility or strict OOP frameworks.
+2. **`3.10` / `3.10+`**: Idiomatic modern Python leveraging `match-case`, `dataclass(slots=True, kw_only=True)`, union type operator `X | Y`, and functional closures.
+3. **`3.12` / `3.12+`**: NextGen Python leveraging PEP 695 type parameter syntax (`class Container[T]:`, `def process[T](item: T):`), `typing.Self`, and PEP 698 `@override`.
 
-#### A. Recommending Patterns based on Problem Description
+Use `--py <auto|classic|3.10|3.12>` to specify the target version. By default, `auto` detects the active Python runtime environment.
+
+---
+
+## 3. CLI Tooling: `bin/pat`
+
+The repository provides a zero-setup executable CLI at `bin/pat` (as well as `pat` when installed as a Python package). AI agents should use `bin/pat` or `pat` to inspect, analyze, compare, and scaffold patterns.
+
+### CLI Commands for Agents
+
+#### A. Static Codebase AST Analysis (`pat analyze`)
+Analyze a Python file or entire directory for detected GoF patterns, Java-in-Python anti-patterns, and version evolution opportunities:
+```bash
+bin/pat analyze src/
+```
+For machine-readable JSON output suitable for programmatic agent parsing:
+```bash
+bin/pat analyze src/ --json
+```
+Detects:
+- Single-method classes that should be plain functions ("Stop Writing Classes").
+- Un-Pythonic getters and setters (`get_x`, `set_x`).
+- Identified GoF design patterns (Strategy, Observer, Command, Singleton, Template Method).
+- Version modernization opportunities (Python 3.10+ and 3.12+ enhancements).
+
+#### B. Comparing Version Evolution Matrix (`pat matrix`)
+Compare the 3-tier implementation matrix (`classic`, `3.10+`, `3.12+`) for a pattern:
+```bash
+bin/pat matrix strategy
+```
+Or machine-readable JSON:
+```bash
+bin/pat matrix strategy --json
+```
+
+#### C. Recommending Patterns based on Problem Description
 Query the built-in diagnostic recommender engine with a plain-text problem description:
 ```bash
 bin/pat recommend -q "I need to notify multiple UI widgets when sensor data changes"
 ```
-For machine-readable JSON output suitable for programmatic agent parsing:
+Or in JSON format:
 ```bash
 bin/pat recommend -q "parse structured expressions and queries" --json
 ```
 
-#### B. Inspecting Pattern Blueprints & Code Examples
+#### D. Inspecting Pattern Blueprints & Code
 View the complete canonical implementation, intent, applicability, and trade-offs:
 ```bash
 bin/pat show observer --json
 ```
-Or view a concise high-level summary:
+View concise high-level summary:
 ```bash
 bin/pat show strategy --summary
 ```
-
-#### C. Scaffolding Pattern Implementations
-Generate a clean, standalone, type-annotated Python starter implementation into a specified file:
+Print implementation code with Python version targeting:
 ```bash
-bin/pat scaffold observer --out src/events/publisher.py
+bin/pat code strategy --py 3.10
+bin/pat code strategy --py 3.12 --json
+bin/pat code strategy --type realworld
+```
+
+#### E. Executing Runnable Examples
+Execute runnable pattern examples directly with version selection:
+```bash
+bin/pat run strategy --py 3.10
+bin/pat run singleton --type conceptual
+```
+
+#### F. Scaffolding Pattern Implementations
+Generate clean, type-annotated Python starter code into a target file:
+```bash
+bin/pat scaffold observer --out src/events/publisher.py --py 3.10
 ```
 To overwrite an existing file:
 ```bash
-bin/pat scaffold observer --out src/events/publisher.py --force
+bin/pat scaffold strategy -o shipping.py --force
 ```
 
-#### D. Searching and Browsing Patterns
+#### G. Searching and Browsing Patterns
 List patterns by category:
 ```bash
 bin/pat list --category behavioral
@@ -87,26 +141,44 @@ Search patterns by intent, keyword, or problem:
 bin/pat search "decouple abstraction from implementation"
 ```
 
-#### E. Interactive Architectural Diagnostic Wizard
+#### H. Interactive Architectural Diagnostic Wizard
 To run a step-by-step diagnostic questionnaire:
 ```bash
 bin/pat diagnose
 ```
 
-#### F. Inspecting Implementation Code & Executing Runnable Examples
-Inspect pure conceptual or real-world implementation code:
+---
+
+## 4. Concrete Prompt & Command Scenarios for Agents
+
+### Scenario 1: Reverse Code Analysis
+When evaluating an existing codebase or reviewing pull requests for architectural anti-patterns:
 ```bash
-bin/pat code strategy --type conceptual
-bin/pat code strategy --type realworld --json
+./bin/pat analyze src/
 ```
-Execute runnable pattern examples directly:
+*Agent action*: Parse the output. If anti-patterns like single-method classes or un-Pythonic getters/setters are reported, refactor them to plain functions, `@property`, or `@dataclass`.
+
+### Scenario 2: Paradigm Matrix Comparison
+When planning how to implement a design pattern across different Python target versions:
 ```bash
-bin/pat run singleton --type conceptual
+./bin/pat matrix strategy
 ```
+*Agent action*: Check whether the target project runs Python 3.10+ or 3.12+. Prefer the Python 3.10+ functional closure or 3.12+ generic approach over classic ABC inheritance boilerplate.
+
+### Scenario 3: Scaffold Generation
+When generating a new component based on an established design pattern:
+```bash
+./bin/pat scaffold strategy -o shipping.py
+```
+Or targeting Python 3.12+:
+```bash
+./bin/pat scaffold strategy -o shipping.py --py 3.12 --force
+```
+*Agent action*: Tailor the generated boilerplate with domain-specific naming and business logic.
 
 ---
 
-## 3. Pattern Catalog Reference
+## 5. Pattern Catalog Reference
 
 The catalog contains all 22 classic Gang of Four patterns divided into three categories:
 
@@ -140,23 +212,22 @@ The catalog contains all 22 classic Gang of Four patterns divided into three cat
 
 ---
 
-## 4. Agent Step-by-Step Workflow
+## 6. Agent Step-by-Step Workflow
 
 When working on a feature, bugfix, or refactoring task:
 
-1. **Analyze Requirements & Identify Friction**:
-   - Determine if there is genuine structural friction: e.g., rigid conditional logic (`if/elif` sprawl), tight coupling between disparate subsystems, or code duplication across variants.
+1. **Analyze Existing Code (Reverse Analysis)**:
+   - Run `bin/pat analyze <target_dir> --json` to detect existing patterns and anti-patterns.
 2. **Evaluate Simpler Alternatives First (YAGNI/KISS)**:
-   - Ask: Can this be solved with a simple function, a standard Python dictionary, or a standard library utility (`functools.partial`, `dataclasses`, `itertools`, `abc`)?
-   - If yes, **stop here** and use the simple solution.
+   - Ask: Can this be solved with a simple function, a standard Python dictionary, pattern matching (`match-case`), or a standard library utility (`functools`, `dataclasses`, `itertools`)?
+   - If yes, **stop here** and use the simple Pythonic solution.
 3. **Query Recommender**:
    - Run `bin/pat recommend -q "<friction description>" --json`.
-   - Inspect the top recommended patterns and their confidence scores.
-4. **Weigh Pros, Cons, and Complexity**:
-   - Check pattern details via `bin/pat show <id> --json`.
-   - Evaluate trade-offs: Will the increased flexibility justify the added classes and indirection?
+   - Inspect the top recommended patterns, their confidence scores, and Python version compatibility.
+4. **Compare Modern Paradigms**:
+   - Run `bin/pat matrix <id>` to inspect the classic vs Python 3.10+ vs Python 3.12+ implementations.
 5. **Scaffold & Adapt**:
-   - Run `bin/pat scaffold <id> --out <target_file>`.
+   - Run `bin/pat scaffold <id> --out <target_file> --py <auto|classic|3.10|3.12>`.
    - Tailor the scaffolded code to the domain: rename generic terms (`ConcreteComponent`, `Receiver`) to domain terms (`PaymentGateway`, `OrderProcessor`).
 6. **Verify with Tests**:
    - Write comprehensive unit tests verifying both the happy path and edge cases.
