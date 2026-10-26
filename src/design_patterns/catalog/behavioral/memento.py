@@ -2,8 +2,8 @@
 
 from design_patterns.models import Category, Pattern
 
-CONCEPTUAL_CODE = '''"""
-Memento - Conceptual Example
+CLASSIC_CODE = '''"""
+Memento - Conceptual Example (Classic GoF)
 """
 from abc import ABC, abstractmethod
 from datetime import datetime
@@ -89,45 +89,94 @@ if __name__ == "__main__":
     caretaker.undo()
 '''
 
-REALWORLD_CODE = '''"""
-Memento - Real-World Example: Canvas Shape State Rollback
+PYTHON310_CODE = '''"""
+Memento - Python 3.10+ Example: Frozen Dataclass Snapshots
 """
-import copy
+from dataclasses import dataclass
 
 
-class CanvasState:
-    def __init__(self, shapes: list[str], zoom: float) -> None:
-        self.shapes = copy.deepcopy(shapes)
-        self.zoom = zoom
+@dataclass(frozen=True)
+class EditorSnapshot:
+    text: str
+    cursor_position: int
+    selection_length: int
 
 
-class GraphicCanvas:
+class TextEditor:
     def __init__(self) -> None:
-        self.shapes: list[str] = []
-        self.zoom: float = 1.0
+        self.text: str = ""
+        self.cursor: int = 0
+        self.selection: int = 0
 
-    def add_shape(self, shape: str) -> None:
-        self.shapes.append(shape)
+    def type_text(self, text: str) -> None:
+        self.text += text
+        self.cursor += len(text)
 
-    def create_snapshot(self) -> CanvasState:
-        return CanvasState(self.shapes, self.zoom)
+    def save(self) -> EditorSnapshot:
+        return EditorSnapshot(self.text, self.cursor, self.selection)
 
-    def restore(self, state: CanvasState) -> None:
-        self.shapes = copy.deepcopy(state.shapes)
-        self.zoom = state.zoom
+    def restore(self, snapshot: EditorSnapshot) -> None:
+        self.text = snapshot.text
+        self.cursor = snapshot.cursor_position
+        self.selection = snapshot.selection_length
 
 
 if __name__ == "__main__":
-    canvas = GraphicCanvas()
-    canvas.add_shape("Circle")
-    snapshot = canvas.create_snapshot()
+    editor = TextEditor()
+    editor.type_text("Initial text. ")
+    saved = editor.save()
 
-    canvas.add_shape("Rectangle")
-    print("Shapes after edit:", canvas.shapes)
+    editor.type_text("Draft modifications.")
+    print(f"Modified: {editor.text}")
 
-    canvas.restore(snapshot)
-    print("Shapes after rollback:", canvas.shapes)
+    editor.restore(saved)
+    print(f"Restored: {editor.text}")
 '''
+
+PYTHON312_CODE = '''"""
+Memento - Python 3.12+ Example: PEP 695 Generic Snapshot History
+"""
+from dataclasses import dataclass
+
+
+@dataclass(frozen=True)
+class GameState:
+    level: int
+    score: int
+    health: int
+
+
+class History[S]:
+    def __init__(self) -> None:
+        self._checkpoints: list[S] = []
+
+    def save(self, state: S) -> None:
+        self._checkpoints.append(state)
+
+    def rollback(self) -> S | None:
+        return self._checkpoints.pop() if self._checkpoints else None
+
+
+if __name__ == "__main__":
+    history: History[GameState] = History()
+    current = GameState(level=1, score=100, health=100)
+    history.save(current)
+
+    current = GameState(level=2, score=250, health=50)
+    print(f"Level 2: {current}")
+
+    prev = history.rollback()
+    print(f"Rolled back to: {prev}")
+'''
+
+CONCEPTUAL_CODE = CLASSIC_CODE
+REALWORLD_CODE = PYTHON310_CODE
+
+MATRIX_NOTES = {
+    "classic": "Heavy ConcreteMemento class hiding state getters from Caretaker.",
+    "3.10": "Zero-overhead snapshots using immutable @dataclass(frozen=True).",
+    "3.12": "Type-safe generic checkpoint tracker History[S] using PEP 695.",
+}
 
 SCAFFOLD_TEMPLATE = '''"""
 Memento Scaffolding Template
@@ -183,7 +232,9 @@ PATTERN = Pattern(
         "与命令（Command）：命令模式常与备忘录配合使用，命令执行状态变化前生成备忘录用于撤销操作",
         "与原型（Prototype）：原型的重点在于完整克隆可独立运行的新对象；备忘录仅用于保存和恢复历史快照",
     ],
-    conceptual_code=CONCEPTUAL_CODE,
-    realworld_code=REALWORLD_CODE,
+    classic_code=CLASSIC_CODE,
+    python310_code=PYTHON310_CODE,
+    python312_code=PYTHON312_CODE,
+    matrix_notes=MATRIX_NOTES,
     scaffold_template=SCAFFOLD_TEMPLATE,
 )

@@ -2,8 +2,8 @@
 
 from design_patterns.models import Category, Pattern
 
-CONCEPTUAL_CODE = '''"""
-Decorator - Conceptual Example
+CLASSIC_CODE = '''"""
+Decorator - Conceptual Example (Classic GoF)
 """
 
 
@@ -49,71 +49,90 @@ if __name__ == "__main__":
     print(client_code(decorator2))
 '''
 
-REALWORLD_CODE = '''"""
-Decorator - Real-World Example: Data Stream Compression & Encryption
+PYTHON310_CODE = '''"""
+Decorator - Python 3.10+ Example: Pythonic Function & Method Decorators
 """
-from abc import ABC, abstractmethod
+from collections.abc import Callable
+import functools
+import time
+from typing import ParamSpec, TypeVar
+
+P = ParamSpec("P")
+R = TypeVar("R")
 
 
-class DataSource(ABC):
-    @abstractmethod
-    def write_data(self, data: str) -> None:
-        pass
-
-    @abstractmethod
-    def read_data(self) -> str:
-        pass
-
-
-class MemoryDataSource(DataSource):
-    def __init__(self) -> None:
-        self._data: str = ""
-
-    def write_data(self, data: str) -> None:
-        self._data = data
-
-    def read_data(self) -> str:
-        return self._data
+def timer(func: Callable[P, R]) -> Callable[P, R]:
+    @functools.wraps(func)
+    def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
+        start = time.perf_counter()
+        result = func(*args, **kwargs)
+        duration = time.perf_counter() - start
+        print(f"[{func.__name__}] executed in {duration:.6f}s")
+        return result
+    return wrapper
 
 
-class DataSourceDecorator(DataSource):
-    def __init__(self, source: DataSource) -> None:
-        self._wrappee = source
-
-    def write_data(self, data: str) -> None:
-        self._wrappee.write_data(data)
-
-    def read_data(self) -> str:
-        return self._wrappee.read_data()
-
-
-class EncryptionDecorator(DataSourceDecorator):
-    def write_data(self, data: str) -> None:
-        encrypted = f"ENCRYPTED({data})"
-        super().write_data(encrypted)
-
-    def read_data(self) -> str:
-        raw = super().read_data()
-        return raw.replace("ENCRYPTED(", "").rstrip(")")
+def retry(times: int = 3):
+    def decorator(func: Callable[P, R]) -> Callable[P, R]:
+        @functools.wraps(func)
+        def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
+            last_err = None
+            for attempt in range(times):
+                try:
+                    return func(*args, **kwargs)
+                except Exception as e:
+                    last_err = e
+            raise RuntimeError(f"Failed after {times} attempts: {last_err}")
+        return wrapper
+    return decorator
 
 
-class CompressionDecorator(DataSourceDecorator):
-    def write_data(self, data: str) -> None:
-        compressed = f"COMPRESSED({data})"
-        super().write_data(compressed)
-
-    def read_data(self) -> str:
-        raw = super().read_data()
-        return raw.replace("COMPRESSED(", "").rstrip(")")
+@timer
+@retry(times=2)
+def calculate_metrics(count: int) -> int:
+    return sum(i * i for i in range(count))
 
 
 if __name__ == "__main__":
-    source = MemoryDataSource()
-    secured = CompressionDecorator(EncryptionDecorator(source))
-    secured.write_data("Secret payroll records")
-    print("Underlying storage:", source.read_data())
-    print("Decoded through stack:", secured.read_data())
+    res = calculate_metrics(1000)
+    print(f"Result: {res}")
 '''
+
+PYTHON312_CODE = '''"""
+Decorator - Python 3.12+ Example: PEP 695 Generic Decorator with ParamSpec
+"""
+from collections.abc import Callable
+import functools
+
+
+def logged[**P, R](func: Callable[P, R]) -> Callable[P, R]:
+    @functools.wraps(func)
+    def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
+        print(f"Calling: {func.__name__}")
+        res = func(*args, **kwargs)
+        print(f"Finished: {func.__name__}")
+        return res
+    return wrapper
+
+
+@logged
+def greet(name: str) -> str:
+    return f"Hello, {name}!"
+
+
+if __name__ == "__main__":
+    msg = greet("World")
+    print(msg)
+'''
+
+CONCEPTUAL_CODE = CLASSIC_CODE
+REALWORLD_CODE = PYTHON310_CODE
+
+MATRIX_NOTES = {
+    "classic": "Heavy object-oriented wrapper class hierarchy conforming to Component interface.",
+    "3.10": "Idiomatic Python @decorator syntax with functools.wraps and ParamSpec type safety.",
+    "3.12": "Clean generic decorator definition using PEP 695 def logged[**P, R](func: Callable[P, R]).",
+}
 
 SCAFFOLD_TEMPLATE = '''"""
 Decorator Scaffolding Template
@@ -174,7 +193,9 @@ PATTERN = Pattern(
         "与代理（Proxy）：装饰与代理结构相似，但目的不同：装饰增强服务功能，代理控制对服务的访问与生命周期",
         "与责任链（Chain of Responsibility）：两者均基于递归组合，但责任链按需中断传递，装饰器通常透明全链执行",
     ],
-    conceptual_code=CONCEPTUAL_CODE,
-    realworld_code=REALWORLD_CODE,
+    classic_code=CLASSIC_CODE,
+    python310_code=PYTHON310_CODE,
+    python312_code=PYTHON312_CODE,
+    matrix_notes=MATRIX_NOTES,
     scaffold_template=SCAFFOLD_TEMPLATE,
 )

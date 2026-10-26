@@ -2,8 +2,8 @@
 
 from design_patterns.models import Category, Pattern
 
-CONCEPTUAL_CODE = '''"""
-Adapter - Conceptual Example
+CLASSIC_CODE = '''"""
+Adapter - Conceptual Example (Classic GoF)
 """
 
 
@@ -38,35 +38,87 @@ if __name__ == "__main__":
     print(client_code(adapter))
 '''
 
-REALWORLD_CODE = '''"""
-Adapter - Real-World Example: Third-Party Payment Gateway
+PYTHON310_CODE = '''"""
+Adapter - Python 3.10+ Example: Protocol-based Structural Adapter & Callables
 """
+from collections.abc import Callable
+from typing import Protocol
 
 
-class InternalPaymentProcessor:
+class PaymentProcessor(Protocol):
+    def process_payment(self, amount_cents: int) -> str: ...
+
+
+class ModernStripeService:
+    def charge(self, total_dollars: float, currency: str = "USD") -> dict[str, str]:
+        return {"status": "success", "id": "tx_9988"}
+
+
+class StripeAdapter:
+    def __init__(self, service: ModernStripeService) -> None:
+        self._service = service
+
     def process_payment(self, amount_cents: int) -> str:
-        return f"Processed ${amount_cents / 100:.2f} via Internal System"
+        res = self._service.charge(amount_cents / 100.0)
+        return f"Paid via Modern Stripe: {res['id']}"
 
 
-class StripeSDK:
-    def charge(self, total_dollars: float, currency: str) -> dict[str, str]:
-        return {"status": "success", "charge_id": "ch_12345", "currency": currency}
-
-
-class StripeAdapter(InternalPaymentProcessor):
-    def __init__(self, stripe_sdk: StripeSDK) -> None:
-        self.stripe = stripe_sdk
-
-    def process_payment(self, amount_cents: int) -> str:
-        dollars = amount_cents / 100.0
-        response = self.stripe.charge(total_dollars=dollars, currency="USD")
-        return f"Processed ${dollars:.2f} via Stripe (id={response['charge_id']})"
+def pay_with_fn(amount_cents: int, gateway: Callable[[float], str]) -> str:
+    return gateway(amount_cents / 100.0)
 
 
 if __name__ == "__main__":
-    processor: InternalPaymentProcessor = StripeAdapter(StripeSDK())
-    print(processor.process_payment(2500))
+    adapter: PaymentProcessor = StripeAdapter(ModernStripeService())
+    print(adapter.process_payment(5000))
+    # Functional adaptation
+    res = pay_with_fn(3500, lambda amt: f"Lambda adapted: ${amt:.2f}")
+    print(res)
 '''
+
+PYTHON312_CODE = '''"""
+Adapter - Python 3.12+ Example: PEP 695 Generic Adapter & @override
+"""
+from collections.abc import Callable
+from typing import Protocol
+
+type Converter[In, Out] = Callable[[In], Out]
+
+
+class DataSource(Protocol):
+    def fetch_raw_data(self) -> dict[str, str]: ...
+
+
+class XMLService:
+    def get_xml_payload(self) -> str:
+        return "<record><id>101</id><name>Alice</name></record>"
+
+
+class XMLToDictAdapter[T: XMLService]:
+    def __init__(self, service: T, parser: Converter[str, dict[str, str]]) -> None:
+        self._service = service
+        self._parser = parser
+
+    def fetch_raw_data(self) -> dict[str, str]:
+        raw = self._service.get_xml_payload()
+        return self._parser(raw)
+
+
+if __name__ == "__main__":
+    adapter = XMLToDictAdapter(
+        XMLService(),
+        lambda xml: {"parsed": xml.replace("<", "[").replace(">", "]")},
+    )
+    print(f"Adapted output: {adapter.fetch_raw_data()}")
+'''
+
+CONCEPTUAL_CODE = CLASSIC_CODE
+REALWORLD_CODE = PYTHON310_CODE
+
+MATRIX_NOTES = {
+    "classic": "Class-based adapter implementing target interface and wrapping adaptee.",
+    "3.10": "Structural typing with typing.Protocol and first-class functional wrappers (Callable).",
+    "3.12": "Type-safe generic adapter class XMLToDictAdapter[T: XMLService] with PEP 695 type aliases.",
+}
 
 SCAFFOLD_TEMPLATE = '''"""
 Adapter Scaffolding Template
@@ -122,7 +174,9 @@ PATTERN = Pattern(
         "与装饰（Decorator）：适配器改变已有对象的接口，而装饰增强对象功能且不改变其接口",
         "与代理（Proxy）：代理提供相同的接口，适配器提供不同的接口",
     ],
-    conceptual_code=CONCEPTUAL_CODE,
-    realworld_code=REALWORLD_CODE,
+    classic_code=CLASSIC_CODE,
+    python310_code=PYTHON310_CODE,
+    python312_code=PYTHON312_CODE,
+    matrix_notes=MATRIX_NOTES,
     scaffold_template=SCAFFOLD_TEMPLATE,
 )

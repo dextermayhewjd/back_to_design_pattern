@@ -2,8 +2,8 @@
 
 from design_patterns.models import Category, Pattern
 
-CONCEPTUAL_CODE = '''"""
-State - Conceptual Example
+CLASSIC_CODE = '''"""
+State - Conceptual Example (Classic GoF)
 """
 from abc import ABC, abstractmethod
 
@@ -73,96 +73,85 @@ if __name__ == "__main__":
     context.request2()
 '''
 
-REALWORLD_CODE = '''"""
-State - Real-World Example: Order Processing Lifecycle
+PYTHON310_CODE = '''"""
+State - Python 3.10+ Example: Enum & Pattern-Matching State Transitions
 """
-from abc import ABC, abstractmethod
+from dataclasses import dataclass
+from enum import Enum, auto
 
 
-class OrderContext:
-    def __init__(self) -> None:
-        self.state: OrderState = PendingPaymentState()
-
-    def set_state(self, state: "OrderState") -> None:
-        self.state = state
-
-    def pay(self) -> str:
-        return self.state.pay(self)
-
-    def ship(self) -> str:
-        return self.state.ship(self)
-
-    def cancel(self) -> str:
-        return self.state.cancel(self)
+class State(Enum):
+    DRAFT = auto()
+    IN_REVIEW = auto()
+    PUBLISHED = auto()
 
 
-class OrderState(ABC):
-    @abstractmethod
-    def pay(self, order: OrderContext) -> str:
-        pass
+@dataclass
+class Document:
+    title: str
+    state: State = State.DRAFT
 
-    @abstractmethod
-    def ship(self, order: OrderContext) -> str:
-        pass
-
-    @abstractmethod
-    def cancel(self, order: OrderContext) -> str:
-        pass
-
-
-class PendingPaymentState(OrderState):
-    def pay(self, order: OrderContext) -> str:
-        order.set_state(PaidState())
-        return "Payment processed successfully. Order is now PAID."
-
-    def ship(self, order: OrderContext) -> str:
-        return "Cannot ship unpaid order."
-
-    def cancel(self, order: OrderContext) -> str:
-        order.set_state(CancelledState())
-        return "Order cancelled before payment."
-
-
-class PaidState(OrderState):
-    def pay(self, order: OrderContext) -> str:
-        return "Order is already paid."
-
-    def ship(self, order: OrderContext) -> str:
-        order.set_state(ShippedState())
-        return "Order dispatched for delivery."
-
-    def cancel(self, order: OrderContext) -> str:
-        return "Order already paid. Refunding and cancelling."
-
-
-class ShippedState(OrderState):
-    def pay(self, order: OrderContext) -> str:
-        return "Order already delivered."
-
-    def ship(self, order: OrderContext) -> str:
-        return "Order already shipped."
-
-    def cancel(self, order: OrderContext) -> str:
-        return "Cannot cancel order that has already shipped."
-
-
-class CancelledState(OrderState):
-    def pay(self, order: OrderContext) -> str:
-        return "Cannot pay cancelled order."
-
-    def ship(self, order: OrderContext) -> str:
-        return "Cannot ship cancelled order."
-
-    def cancel(self, order: OrderContext) -> str:
-        return "Order is already cancelled."
+    def publish(self) -> str:
+        match self.state:
+            case State.DRAFT:
+                self.state = State.IN_REVIEW
+                return f"'{self.title}' submitted for review"
+            case State.IN_REVIEW:
+                self.state = State.PUBLISHED
+                return f"'{self.title}' published successfully"
+            case State.PUBLISHED:
+                return f"'{self.title}' is already published"
 
 
 if __name__ == "__main__":
-    order = OrderContext()
-    print(order.ship())
-    print(order.pay())
-    print(order.ship())
+    doc = Document("Design Patterns in Python 3.10")
+    print(doc.publish())
+    print(doc.publish())
+    print(doc.publish())
 '''
+
+PYTHON312_CODE = '''"""
+State - Python 3.12+ Example: PEP 695 Generic Finite State Machine
+"""
+from typing import Self
+
+type TransitionTable[S, E] = dict[tuple[S, E], S]
+
+
+class StateMachine[S, E]:
+    def __init__(self, initial_state: S, transitions: TransitionTable[S, E]) -> None:
+        self.state = initial_state
+        self._transitions = transitions
+
+    def trigger(self, event: E) -> Self:
+        key = (self.state, event)
+        if key in self._transitions:
+            self.state = self._transitions[key]
+        else:
+            raise ValueError(f"Invalid transition from {self.state} with event {event}")
+        return self
+
+
+if __name__ == "__main__":
+    table: TransitionTable[str, str] = {
+        ("locked", "coin"): "unlocked",
+        ("unlocked", "push"): "locked",
+    }
+    turnstile = StateMachine("locked", table)
+    turnstile.trigger("coin")
+    print(f"State after coin: {turnstile.state}")
+    turnstile.trigger("push")
+    print(f"State after push: {turnstile.state}")
+'''
+
+CONCEPTUAL_CODE = CLASSIC_CODE
+REALWORLD_CODE = PYTHON310_CODE
+
+MATRIX_NOTES = {
+    "classic": "Object-oriented state hierarchy with circular Context <-> State pointers.",
+    "3.10": "Clean state transitions using Python 3.10 match-case on state Enums and dataclasses.",
+    "3.12": "Generic table-driven state machine StateMachine[S, E] parameterized via PEP 695.",
+}
 
 SCAFFOLD_TEMPLATE = '''"""
 State Scaffolding Template
@@ -217,7 +206,9 @@ PATTERN = Pattern(
     relations=[
         "与策略（Strategy）：状态可以被视为策略模式的扩展，区别在于状态模式中的各个状态对象之间彼此知晓并可以主动触发状态转移，而策略对象通常彼此独立且对上下文无感知",
     ],
-    conceptual_code=CONCEPTUAL_CODE,
-    realworld_code=REALWORLD_CODE,
+    classic_code=CLASSIC_CODE,
+    python310_code=PYTHON310_CODE,
+    python312_code=PYTHON312_CODE,
+    matrix_notes=MATRIX_NOTES,
     scaffold_template=SCAFFOLD_TEMPLATE,
 )

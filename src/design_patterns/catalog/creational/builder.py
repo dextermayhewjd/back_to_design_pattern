@@ -2,8 +2,8 @@
 
 from design_patterns.models import Category, Pattern
 
-CONCEPTUAL_CODE = '''"""
-Builder - Conceptual Example
+CLASSIC_CODE = '''"""
+Builder - Conceptual Example (Classic GoF)
 """
 from abc import ABC, abstractmethod
 from typing import Any
@@ -98,57 +98,122 @@ if __name__ == "__main__":
     print(builder.product.list_parts())
 '''
 
-REALWORLD_CODE = '''"""
-Builder - Real-World Example: SQL Query Builder
+PYTHON310_CODE = '''"""
+Builder - Python 3.10+ Example: Dataclass with kw_only & Fluent Builder
 """
-from typing import Self
+from dataclasses import dataclass, field
 
 
-class SQLQueryBuilder:
+@dataclass(kw_only=True)
+class ServerConfig:
+    host: str = "localhost"
+    port: int = 8080
+    ssl_enabled: bool = False
+    workers: int = 4
+    middlewares: list[str] = field(default_factory=list)
+    timeout: float | None = 30.0
+
+
+class ServerConfigBuilder:
     def __init__(self) -> None:
-        self.reset()
+        self._config = ServerConfig()
 
-    def reset(self) -> None:
-        self._table = ""
-        self._fields: list[str] = []
-        self._where: list[str] = []
-        self._limit: int | None = None
-
-    def select(self, table: str, fields: list[str]) -> Self:
-        self.reset()
-        self._table = table
-        self._fields = fields
+    def with_host(self, host: str) -> "ServerConfigBuilder":
+        self._config.host = host
         return self
 
-    def where(self, condition: str) -> Self:
-        self._where.append(condition)
+    def with_port(self, port: int) -> "ServerConfigBuilder":
+        self._config.port = port
         return self
 
-    def limit(self, limit: int) -> Self:
-        self._limit = limit
+    def enable_ssl(self) -> "ServerConfigBuilder":
+        self._config.ssl_enabled = True
         return self
 
-    def get_sql(self) -> str:
-        fields = ", ".join(self._fields) if self._fields else "*"
-        query = f"SELECT {fields} FROM {self._table}"
-        if self._where:
-            query += f" WHERE {' AND '.join(self._where)}"
-        if self._limit is not None:
-            query += f" LIMIT {self._limit}"
-        return query + ";"
+    def add_middleware(self, name: str) -> "ServerConfigBuilder":
+        self._config.middlewares.append(name)
+        return self
+
+    def build(self) -> ServerConfig:
+        return self._config
 
 
 if __name__ == "__main__":
-    builder = SQLQueryBuilder()
-    query = (
-        builder.select("users", ["id", "name", "email"])
-        .where("age > 18")
-        .where("status = 'active'")
-        .limit(10)
-        .get_sql()
+    # Direct keyword-only instantiation (simplifies parameter explosion)
+    cfg1 = ServerConfig(host="0.0.0.0", port=443, ssl_enabled=True)
+    print(f"Direct kw_only config: {cfg1}")
+
+    # Fluent builder when step-by-step assembly is needed
+    cfg2 = (
+        ServerConfigBuilder()
+        .with_host("api.internal")
+        .with_port(9000)
+        .add_middleware("auth")
+        .add_middleware("rate_limiter")
+        .build()
     )
-    print(query)
+    print(f"Fluent built config: {cfg2}")
 '''
+
+PYTHON312_CODE = '''"""
+Builder - Python 3.12+ Example: typing.Self Fluent Builder
+"""
+from dataclasses import dataclass, field
+from typing import Self
+
+
+@dataclass
+class Query:
+    table: str = ""
+    fields: list[str] = field(default_factory=list)
+    filters: list[str] = field(default_factory=list)
+    limit: int | None = None
+
+
+class QueryBuilder:
+    def __init__(self) -> None:
+        self._query = Query()
+
+    def from_table(self, table: str) -> Self:
+        self._query.table = table
+        return self
+
+    def select(self, *fields: str) -> Self:
+        self._query.fields.extend(fields)
+        return self
+
+    def where(self, condition: str) -> Self:
+        self._query.filters.append(condition)
+        return self
+
+    def take(self, count: int) -> Self:
+        self._query.limit = count
+        return self
+
+    def build(self) -> Query:
+        return self._query
+
+
+if __name__ == "__main__":
+    q = (
+        QueryBuilder()
+        .from_table("users")
+        .select("id", "email")
+        .where("active = 1")
+        .take(5)
+        .build()
+    )
+    print(f"Built Query: {q}")
+'''
+
+CONCEPTUAL_CODE = CLASSIC_CODE
+REALWORLD_CODE = PYTHON310_CODE
+
+MATRIX_NOTES = {
+    "classic": "Verbose GoF Builder and Director hierarchy managing multi-step object creation.",
+    "3.10": "Solved constructor parameter explosion using dataclass(kw_only=True) and union types (|).",
+    "3.12": "Utilized typing.Self for fluent method chaining without string-forward references.",
+}
 
 SCAFFOLD_TEMPLATE = '''"""
 Builder Scaffolding Template
@@ -211,7 +276,9 @@ PATTERN = Pattern(
         "与抽象工厂（Abstract Factory）：抽象工厂侧重于一次性创建产品族，生成器侧重于逐步创建复杂单个对象",
         "与组合（Composite）：生成器常用于逐步构建递归组合树结构",
     ],
-    conceptual_code=CONCEPTUAL_CODE,
-    realworld_code=REALWORLD_CODE,
+    classic_code=CLASSIC_CODE,
+    python310_code=PYTHON310_CODE,
+    python312_code=PYTHON312_CODE,
+    matrix_notes=MATRIX_NOTES,
     scaffold_template=SCAFFOLD_TEMPLATE,
 )

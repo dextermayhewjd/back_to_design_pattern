@@ -2,8 +2,8 @@
 
 from design_patterns.models import Category, Pattern
 
-CONCEPTUAL_CODE = '''"""
-Abstract Factory - Conceptual Example
+CLASSIC_CODE = '''"""
+Abstract Factory - Conceptual Example (Classic GoF)
 """
 from abc import ABC, abstractmethod
 
@@ -89,83 +89,114 @@ if __name__ == "__main__":
     print(client_code(ConcreteFactory2()))
 '''
 
-REALWORLD_CODE = '''"""
-Abstract Factory - Real-World Example: Cross-Platform GUI Toolkits
+PYTHON310_CODE = '''"""
+Abstract Factory - Python 3.10+ Example: Protocols & Dataclass Product Families
 """
-from abc import ABC, abstractmethod
+from dataclasses import dataclass
+from typing import Protocol
 
 
-class Button(ABC):
-    @abstractmethod
-    def paint(self) -> str:
-        pass
-
-
-class Checkbox(ABC):
-    @abstractmethod
-    def paint(self) -> str:
-        pass
-
-
-class WinButton(Button):
-    def paint(self) -> str:
-        return "[Windows Style Button]"
-
-
-class WinCheckbox(Checkbox):
-    def paint(self) -> str:
-        return "[Windows Style Checkbox]"
-
-
-class MacButton(Button):
-    def paint(self) -> str:
-        return "(macOS Style Button)"
-
-
-class MacCheckbox(Checkbox):
-    def paint(self) -> str:
-        return "(macOS Style Checkbox)"
-
-
-class GUIFactory(ABC):
-    @abstractmethod
-    def create_button(self) -> Button:
-        pass
-
-    @abstractmethod
-    def create_checkbox(self) -> Checkbox:
-        pass
-
-
-class WinFactory(GUIFactory):
-    def create_button(self) -> Button:
-        return WinButton()
-
-    def create_checkbox(self) -> Checkbox:
-        return WinCheckbox()
-
-
-class MacFactory(GUIFactory):
-    def create_button(self) -> Button:
-        return MacButton()
-
-    def create_checkbox(self) -> Checkbox:
-        return MacCheckbox()
-
-
-class Application:
-    def __init__(self, factory: GUIFactory) -> None:
-        self.button = factory.create_button()
-        self.checkbox = factory.create_checkbox()
+@dataclass(frozen=True)
+class Button:
+    theme: str
 
     def render(self) -> str:
-        return f"{self.button.paint()} and {self.checkbox.paint()}"
+        return f"[{self.theme} Button]"
+
+
+@dataclass(frozen=True)
+class Checkbox:
+    theme: str
+
+    def render(self) -> str:
+        return f"[{self.theme} Checkbox]"
+
+
+class GUIFactory(Protocol):
+    def create_button(self) -> Button: ...
+    def create_checkbox(self) -> Checkbox: ...
+
+
+class DarkThemeFactory:
+    def create_button(self) -> Button:
+        return Button(theme="Dark")
+
+    def create_checkbox(self) -> Checkbox:
+        return Checkbox(theme="Dark")
+
+
+class LightThemeFactory:
+    def create_button(self) -> Button:
+        return Button(theme="Light")
+
+    def create_checkbox(self) -> Checkbox:
+        return Checkbox(theme="Light")
+
+
+def get_factory(theme: str) -> GUIFactory:
+    match theme:
+        case "dark":
+            return DarkThemeFactory()
+        case "light":
+            return LightThemeFactory()
+        case _:
+            raise ValueError(f"Unknown theme: {theme}")
 
 
 if __name__ == "__main__":
-    app = Application(MacFactory())
-    print(app.render())
+    factory = get_factory("dark")
+    print(factory.create_button().render(), factory.create_checkbox().render())
 '''
+
+PYTHON312_CODE = '''"""
+Abstract Factory - Python 3.12+ Example: PEP 695 Generic Family Factory
+"""
+from dataclasses import dataclass
+from typing import Protocol
+
+type ComponentPair[B, C] = tuple[B, C]
+
+
+@dataclass(frozen=True)
+class Button:
+    label: str
+
+
+@dataclass(frozen=True)
+class Checkbox:
+    checked: bool
+
+
+class Factory[B: Button, C: Checkbox](Protocol):
+    def create_button(self) -> B: ...
+    def create_checkbox(self) -> C: ...
+
+
+class StandardFactory:
+    def create_button(self) -> Button:
+        return Button(label="Standard")
+
+    def create_checkbox(self) -> Checkbox:
+        return Checkbox(checked=True)
+
+
+def build_ui[B: Button, C: Checkbox](factory: Factory[B, C]) -> ComponentPair[B, C]:
+    return factory.create_button(), factory.create_checkbox()
+
+
+if __name__ == "__main__":
+    b, c = build_ui(StandardFactory())
+    print(f"UI Created: {b}, {c}")
+'''
+
+CONCEPTUAL_CODE = CLASSIC_CODE
+REALWORLD_CODE = PYTHON310_CODE
+
+MATRIX_NOTES = {
+    "classic": "Heavy multi-level inheritance tree with AbstractFactory and AbstractProduct ABCs.",
+    "3.10": "Structural typing with typing.Protocol, frozen dataclasses, and match-case theme dispatch.",
+    "3.12": "Type-safe product families with PEP 695 type parameters Factory[B: Button, C: Checkbox] and type alias ComponentPair.",
+}
 
 SCAFFOLD_TEMPLATE = '''"""
 Abstract Factory Scaffolding Template
@@ -236,7 +267,9 @@ PATTERN = Pattern(
         "与单例（Singleton）：抽象工厂通常作为单例实现",
         "与工厂方法（Factory Method）：抽象工厂类通常由一组工厂方法组成",
     ],
-    conceptual_code=CONCEPTUAL_CODE,
-    realworld_code=REALWORLD_CODE,
+    classic_code=CLASSIC_CODE,
+    python310_code=PYTHON310_CODE,
+    python312_code=PYTHON312_CODE,
+    matrix_notes=MATRIX_NOTES,
     scaffold_template=SCAFFOLD_TEMPLATE,
 )

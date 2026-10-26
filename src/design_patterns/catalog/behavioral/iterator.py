@@ -2,8 +2,8 @@
 
 from design_patterns.models import Category, Pattern
 
-CONCEPTUAL_CODE = '''"""
-Iterator - Conceptual Example: Pythonic __iter__ and __next__
+CLASSIC_CODE = '''"""
+Iterator - Conceptual Example: Pythonic __iter__ and __next__ (Classic GoF)
 """
 from collections.abc import Iterable, Iterator
 from typing import Any
@@ -57,38 +57,78 @@ if __name__ == "__main__":
     print("\\n".join(collection.get_reverse_iterator()))
 '''
 
-REALWORLD_CODE = '''"""
-Iterator - Real-World Example: Paginated API Result Traverser
+PYTHON310_CODE = '''"""
+Iterator - Python 3.10+ Example: Generators & yield from
 """
 from collections.abc import Iterator
 
 
-class PaginatedAPIIterator(Iterator):
-    def __init__(self, total_pages: int = 3, per_page: int = 2) -> None:
-        self.total_pages = total_pages
-        self.per_page = per_page
-        self.current_page = 0
-        self.buffer: list[str] = []
+class BinaryTreeNode:
+    def __init__(self, value: int, left: "BinaryTreeNode | None" = None, right: "BinaryTreeNode | None" = None) -> None:
+        self.value = value
+        self.left = left
+        self.right = right
 
-    def _fetch_next_page(self) -> None:
-        if self.current_page < self.total_pages:
-            self.current_page += 1
-            start_id = (self.current_page - 1) * self.per_page + 1
-            self.buffer = [f"Item-{start_id + i}" for i in range(self.per_page)]
+    def __iter__(self) -> Iterator[int]:
+        """In-order tree traversal via generator."""
+        if self.left:
+            yield from self.left
+        yield self.value
+        if self.right:
+            yield from self.right
 
-    def __next__(self) -> str:
-        if not self.buffer:
-            self._fetch_next_page()
-        if not self.buffer:
-            raise StopIteration
-        return self.buffer.pop(0)
+
+def paginated_fetch(pages: int, per_page: int) -> Iterator[str]:
+    """Generator-based streaming pagination."""
+    for p in range(1, pages + 1):
+        for i in range(1, per_page + 1):
+            yield f"Page {p} - Item {i}"
 
 
 if __name__ == "__main__":
-    api_stream = PaginatedAPIIterator(total_pages=2, per_page=3)
-    for record in api_stream:
-        print("Processed streaming record:", record)
+    # Tree traversal using yield from
+    root = BinaryTreeNode(10, BinaryTreeNode(5), BinaryTreeNode(15))
+    print(f"Tree values in-order: {list(root)}")
+
+    # Streaming items
+    for item in paginated_fetch(pages=2, per_page=2):
+        print(f"Stream: {item}")
 '''
+
+PYTHON312_CODE = '''"""
+Iterator - Python 3.12+ Example: PEP 695 Generic Generator & Iterable Protocol
+"""
+from collections.abc import Iterator
+
+
+def batch_stream[T](items: list[T], batch_size: int) -> Iterator[list[T]]:
+    for i in range(0, len(items), batch_size):
+        yield items[i : i + batch_size]
+
+
+class PipelineSource[T]:
+    def __init__(self, data: list[T]) -> None:
+        self._data = data
+
+    def __iter__(self) -> Iterator[T]:
+        yield from self._data
+
+
+if __name__ == "__main__":
+    src: PipelineSource[int] = PipelineSource([1, 2, 3, 4, 5])
+    print(f"Pipelined items: {list(src)}")
+    batches = list(batch_stream(["a", "b", "c", "d"], batch_size=2))
+    print(f"Batches: {batches}")
+'''
+
+CONCEPTUAL_CODE = CLASSIC_CODE
+REALWORLD_CODE = PYTHON310_CODE
+
+MATRIX_NOTES = {
+    "classic": "Manual Iterator class with __next__(), StopIteration raising, and state index tracking.",
+    "3.10": "Replaced manual iterator classes with Python generators using yield and yield from.",
+    "3.12": "Type-safe generic streaming generators batch_stream[T] using PEP 695 syntax.",
+}
 
 SCAFFOLD_TEMPLATE = '''"""
 Iterator Scaffolding Template
@@ -148,7 +188,9 @@ PATTERN = Pattern(
         "与组合（Composite）：你可以使用迭代器来遍历组合树中的元素",
         "与访问者（Visitor）：你可以同时使用访问者和迭代器来遍历复杂结构并在每个节点执行特定操作",
     ],
-    conceptual_code=CONCEPTUAL_CODE,
-    realworld_code=REALWORLD_CODE,
+    classic_code=CLASSIC_CODE,
+    python310_code=PYTHON310_CODE,
+    python312_code=PYTHON312_CODE,
+    matrix_notes=MATRIX_NOTES,
     scaffold_template=SCAFFOLD_TEMPLATE,
 )

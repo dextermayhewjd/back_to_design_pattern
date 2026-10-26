@@ -2,8 +2,8 @@
 
 from design_patterns.models import Category, Pattern
 
-CONCEPTUAL_CODE = '''"""
-Singleton - Conceptual Example: Metaclass Implementation
+CLASSIC_CODE = '''"""
+Singleton - Conceptual Example: Metaclass Implementation (Classic GoF)
 """
 from typing import Any
 
@@ -29,39 +29,66 @@ if __name__ == "__main__":
     print("Same instance:", s1 is s2)
 '''
 
-REALWORLD_CODE = '''"""
-Singleton - Real-World Example: Thread-Safe Database Connection Pool
+PYTHON310_CODE = '''"""
+Singleton - Python 3.10+ Example: Module-level instance / @lru_cache factory
 """
-from threading import Lock
-from typing import Any
+from dataclasses import dataclass, field
+from functools import lru_cache
 
 
-class ThreadSafeSingletonMeta(type):
-    _instances: dict[type, Any] = {}
-    _lock: Lock = Lock()
-
-    def __call__(cls, *args: Any, **kwargs: Any) -> Any:
-        with cls._lock:
-            if cls not in cls._instances:
-                instance = super().__call__(*args, **kwargs)
-                cls._instances[cls] = instance
-        return cls._instances[cls]
+@dataclass
+class AppSettings:
+    app_name: str = "ModernApp"
+    debug: bool = False
+    env_vars: dict[str, str] = field(default_factory=dict)
 
 
-class DatabaseConnection(metaclass=ThreadSafeSingletonMeta):
-    def __init__(self) -> None:
-        self.connected: bool = True
-
-    def query(self, sql: str) -> str:
-        return f"Executing {sql} on shared connection {id(self)}"
+@lru_cache(maxsize=1)
+def get_settings() -> AppSettings:
+    """Returns a process-wide singleton settings instance (thread-safe by GIL/lru_cache)."""
+    return AppSettings()
 
 
 if __name__ == "__main__":
-    db1 = DatabaseConnection()
-    db2 = DatabaseConnection()
-    print(db1.query("SELECT 1"))
-    print("Shared instance verification:", db1 is db2)
+    s1 = get_settings()
+    s2 = get_settings()
+    s1.debug = True
+    print(f"Singleton identical: {s1 is s2}, debug={s2.debug}")
 '''
+
+PYTHON312_CODE = '''"""
+Singleton - Python 3.12+ Example: Generic Singleton Container & typing.Self
+"""
+from typing import Self
+
+
+class ServiceRegistry:
+    _instance: Self | None = None
+
+    @classmethod
+    def get_instance(cls) -> Self:
+        if cls._instance is None:
+            cls._instance = cls()
+        return cls._instance
+
+    def ping(self) -> str:
+        return "pong"
+
+
+if __name__ == "__main__":
+    registry1 = ServiceRegistry.get_instance()
+    registry2 = ServiceRegistry.get_instance()
+    print(f"Registry shared: {registry1 is registry2}, response: {registry1.ping()}")
+'''
+
+CONCEPTUAL_CODE = CLASSIC_CODE
+REALWORLD_CODE = PYTHON310_CODE
+
+MATRIX_NOTES = {
+    "classic": "Heavy metaclass __call__ interception or __new__ override controlling instance creation.",
+    "3.10": "Replaced metaclasses with Pythonic @functools.lru_cache(maxsize=1) or module-level singleton pattern.",
+    "3.12": "Utilized typing.Self for type-safe get_instance() classmethod and PEP 695 generic container.",
+}
 
 SCAFFOLD_TEMPLATE = '''"""
 Singleton Scaffolding Template
@@ -114,7 +141,9 @@ PATTERN = Pattern(
         "与外观（Facade）：外观通常只需一个外观对象，因此常作为单例实现",
         "与抽象工厂（Abstract Factory）：抽象工厂实现通常是单例",
     ],
-    conceptual_code=CONCEPTUAL_CODE,
-    realworld_code=REALWORLD_CODE,
+    classic_code=CLASSIC_CODE,
+    python310_code=PYTHON310_CODE,
+    python312_code=PYTHON312_CODE,
+    matrix_notes=MATRIX_NOTES,
     scaffold_template=SCAFFOLD_TEMPLATE,
 )

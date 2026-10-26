@@ -2,8 +2,8 @@
 
 from design_patterns.models import Category, Pattern
 
-CONCEPTUAL_CODE = '''"""
-Proxy - Conceptual Example
+CLASSIC_CODE = '''"""
+Proxy - Conceptual Example (Classic GoF)
 """
 from abc import ABC, abstractmethod
 
@@ -52,45 +52,82 @@ if __name__ == "__main__":
     print(client_code(proxy))
 '''
 
-REALWORLD_CODE = '''"""
-Proxy - Real-World Example: Lazy Loading and Caching Video Downloader
+PYTHON310_CODE = '''"""
+Proxy - Python 3.10+ Example: Dynamic Delegation Proxy & Lazy Loading
 """
-from abc import ABC, abstractmethod
+from collections.abc import Callable
+from typing import Any
 
 
-class VideoDownloader(ABC):
-    @abstractmethod
-    def get_video_data(self, video_id: str) -> str:
-        pass
+class HeavyDatabaseService:
+    def __init__(self) -> None:
+        print("[DB] Initializing heavy connection pool...")
+
+    def query(self, sql: str) -> str:
+        return f"Results for: {sql}"
 
 
-class RealNetworkVideoDownloader(VideoDownloader):
-    def get_video_data(self, video_id: str) -> str:
-        # Simulate network latency and heavy download
-        return f"Heavy binary payload for video {video_id} downloaded from network"
+class LazyProxy:
+    def __init__(self, factory: Callable[[], Any]) -> None:
+        self._factory = factory
+        self._instance: Any | None = None
 
+    def _get_target(self) -> Any:
+        if self._instance is None:
+            self._instance = self._factory()
+        return self._instance
 
-class CachedVideoDownloaderProxy(VideoDownloader):
-    def __init__(self, service: VideoDownloader) -> None:
-        self._service = service
-        self._cache: dict[str, str] = {}
-
-    def get_video_data(self, video_id: str) -> str:
-        if video_id not in self._cache:
-            print(f"[CACHE MISS] Fetching video {video_id} via network...")
-            self._cache[video_id] = self._service.get_video_data(video_id)
-        else:
-            print(f"[CACHE HIT] Returning video {video_id} from memory.")
-        return self._cache[video_id]
+    def __getattr__(self, name: str) -> Any:
+        target = self._get_target()
+        return getattr(target, name)
 
 
 if __name__ == "__main__":
-    real_service = RealNetworkVideoDownloader()
-    proxy = CachedVideoDownloaderProxy(real_service)
-
-    print(proxy.get_video_data("v_101"))
-    print(proxy.get_video_data("v_101"))
+    proxy = LazyProxy(HeavyDatabaseService)
+    print("Proxy created (DB not yet connected)")
+    print(proxy.query("SELECT * FROM users"))
 '''
+
+PYTHON312_CODE = '''"""
+Proxy - Python 3.12+ Example: PEP 695 Generic Lazy Proxy
+"""
+from collections.abc import Callable
+
+
+class HeavyResource:
+    def fetch_data(self) -> str:
+        return "Heavy payload data loaded"
+
+
+class LazyProxy[T]:
+    def __init__(self, factory: Callable[[], T]) -> None:
+        self._factory = factory
+        self._target: T | None = None
+
+    @property
+    def target(self) -> T:
+        if self._target is None:
+            self._target = self._factory()
+        return self._target
+
+    def get_data(self) -> str:
+        return getattr(self.target, "fetch_data")()
+
+
+if __name__ == "__main__":
+    proxy: LazyProxy[HeavyResource] = LazyProxy(HeavyResource)
+    print("Proxy initialized without loading heavy resource.")
+    print(proxy.get_data())
+'''
+
+CONCEPTUAL_CODE = CLASSIC_CODE
+REALWORLD_CODE = PYTHON310_CODE
+
+MATRIX_NOTES = {
+    "classic": "Heavy Subject base class requiring Proxy and RealSubject to implement identical methods.",
+    "3.10": "Dynamic attribute delegation via __getattr__ or functools.cached_property for lazy loading.",
+    "3.12": "Type-safe generic lazy initialization wrapper LazyProxy[T] using PEP 695.",
+}
 
 SCAFFOLD_TEMPLATE = '''"""
 Proxy Scaffolding Template
@@ -114,9 +151,7 @@ class ServiceProxy(ServiceInterface):
         self.real_service = real_service
 
     def operation(self) -> str:
-        # Pre-processing (auth, caching, logging)
         result = self.real_service.operation()
-        # Post-processing
         return result
 '''
 
@@ -156,7 +191,9 @@ PATTERN = Pattern(
         "与适配器（Adapter）：适配器提供不同的接口，代理提供相同的接口",
         "与外观（Facade）：外观与代理都缓存/封装复杂实体，但外观定义全新的简化接口，代理遵循服务现有接口",
     ],
-    conceptual_code=CONCEPTUAL_CODE,
-    realworld_code=REALWORLD_CODE,
+    classic_code=CLASSIC_CODE,
+    python310_code=PYTHON310_CODE,
+    python312_code=PYTHON312_CODE,
+    matrix_notes=MATRIX_NOTES,
     scaffold_template=SCAFFOLD_TEMPLATE,
 )

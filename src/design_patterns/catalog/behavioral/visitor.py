@@ -2,8 +2,8 @@
 
 from design_patterns.models import Category, Pattern
 
-CONCEPTUAL_CODE = '''"""
-Visitor - Conceptual Example
+CLASSIC_CODE = '''"""
+Visitor - Conceptual Example (Classic GoF)
 """
 from abc import ABC, abstractmethod
 
@@ -73,61 +73,102 @@ if __name__ == "__main__":
     client_code(components, visitor2)
 '''
 
-REALWORLD_CODE = '''"""
-Visitor - Real-World Example: AST Exporter (XML / JSON Representation)
+PYTHON310_CODE = '''"""
+Visitor - Python 3.10+ Example: @functools.singledispatch & Match-Case
 """
-from abc import ABC, abstractmethod
+from dataclasses import dataclass
+from functools import singledispatch
 
 
-class Node(ABC):
-    @abstractmethod
-    def accept(self, visitor: "ASTVisitor") -> str:
-        pass
+@dataclass
+class NumberNode:
+    val: float
 
 
-class IdentifierNode(Node):
-    def __init__(self, name: str) -> None:
-        self.name = name
-
-    def accept(self, visitor: "ASTVisitor") -> str:
-        return visitor.visit_identifier(self)
+@dataclass
+class AddNode:
+    left: object
+    right: object
 
 
-class BinaryOpNode(Node):
-    def __init__(self, left: Node, op: str, right: Node) -> None:
-        self.left = left
-        self.op = op
-        self.right = right
-
-    def accept(self, visitor: "ASTVisitor") -> str:
-        return visitor.visit_binary_op(self)
+# In Python, @singledispatch eliminates the need for double-dispatch accept() methods!
+@singledispatch
+def evaluate(node) -> float:
+    raise NotImplementedError(f"Unsupported node type: {type(node)}")
 
 
-class ASTVisitor(ABC):
-    @abstractmethod
-    def visit_identifier(self, node: IdentifierNode) -> str:
-        pass
-
-    @abstractmethod
-    def visit_binary_op(self, node: BinaryOpNode) -> str:
-        pass
+@evaluate.register
+def _(node: NumberNode) -> float:
+    return node.val
 
 
-class JSONExportVisitor(ASTVisitor):
-    def visit_identifier(self, node: IdentifierNode) -> str:
-        return f'{{"type": "Identifier", "name": "{node.name}"}}'
+@evaluate.register
+def _(node: AddNode) -> float:
+    return evaluate(node.left) + evaluate(node.right)
 
-    def visit_binary_op(self, node: BinaryOpNode) -> str:
-        left = node.left.accept(self)
-        right = node.right.accept(self)
-        return f'{{"type": "BinaryOp", "op": "{node.op}", "left": {left}, "right": {right}}}'
+
+def stringify(node) -> str:
+    """Alternative visitor implemented purely with pattern matching."""
+    match node:
+        case NumberNode(val):
+            return str(val)
+        case AddNode(left, right):
+            return f"({stringify(left)} + {stringify(right)})"
+        case _:
+            return str(node)
 
 
 if __name__ == "__main__":
-    ast = BinaryOpNode(IdentifierNode("x"), "+", IdentifierNode("y"))
-    exporter = JSONExportVisitor()
-    print("Exported JSON AST:\\n", ast.accept(exporter))
+    expr = AddNode(NumberNode(10), AddNode(NumberNode(5), NumberNode(3)))
+    print("Formula:", stringify(expr))
+    print("Evaluated result:", evaluate(expr))
 '''
+
+PYTHON312_CODE = '''"""
+Visitor - Python 3.12+ Example: PEP 695 Type Alias & Pattern Matching
+"""
+from dataclasses import dataclass
+
+type Expression = Num | BinOp
+
+
+@dataclass
+class Num:
+    value: int
+
+
+@dataclass
+class BinOp:
+    left: Expression
+    op: str
+    right: Expression
+
+
+def evaluate_expression(expr: Expression) -> int:
+    match expr:
+        case Num(val):
+            return val
+        case BinOp(l, "+", r):
+            return evaluate_expression(l) + evaluate_expression(r)
+        case BinOp(l, "*", r):
+            return evaluate_expression(l) * evaluate_expression(r)
+        case _:
+            raise ValueError(f"Unknown operation: {expr}")
+
+
+if __name__ == "__main__":
+    ast: Expression = BinOp(Num(3), "*", BinOp(Num(4), "+", Num(5)))
+    print("Evaluated AST:", evaluate_expression(ast))
+'''
+
+CONCEPTUAL_CODE = CLASSIC_CODE
+REALWORLD_CODE = PYTHON310_CODE
+
+MATRIX_NOTES = {
+    "classic": "Double-dispatch ceremony requiring accept(visitor) on elements and visit_* on Visitor.",
+    "3.10": "Replaced double-dispatch ceremony with @functools.singledispatch and match-case.",
+    "3.12": "Clean algebraic expression processing via PEP 695 type Expression = Num | BinOp and match-case.",
+}
 
 SCAFFOLD_TEMPLATE = '''"""
 Visitor Scaffolding Template
@@ -185,7 +226,9 @@ PATTERN = Pattern(
         "与命令（Command）：访问者是命令模式的高级版本，其操作可以对不同类的多种对象执行",
         "与迭代器（Iterator）：迭代器专注于遍历，访问者专注于在遍历过程中执行具体逻辑",
     ],
-    conceptual_code=CONCEPTUAL_CODE,
-    realworld_code=REALWORLD_CODE,
+    classic_code=CLASSIC_CODE,
+    python310_code=PYTHON310_CODE,
+    python312_code=PYTHON312_CODE,
+    matrix_notes=MATRIX_NOTES,
     scaffold_template=SCAFFOLD_TEMPLATE,
 )

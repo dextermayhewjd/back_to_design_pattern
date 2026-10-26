@@ -2,8 +2,8 @@
 
 from design_patterns.models import Category, Pattern
 
-CONCEPTUAL_CODE = '''"""
-Chain of Responsibility - Conceptual Example
+CLASSIC_CODE = '''"""
+Chain of Responsibility - Conceptual Example (Classic GoF)
 """
 from abc import ABC, abstractmethod
 from typing import Any
@@ -72,66 +72,97 @@ if __name__ == "__main__":
     client_code(monkey)
 '''
 
-REALWORLD_CODE = '''"""
-Chain of Responsibility - Real-World Example: HTTP Request Middleware Pipeline
+PYTHON310_CODE = '''"""
+Chain of Responsibility - Python 3.10+ Example: Functional Pipeline & Match-Case
 """
-from abc import ABC, abstractmethod
+from collections.abc import Callable
+from dataclasses import dataclass
+
+HandlerFn = Callable[[str], str | None]
 
 
-class HTTPRequest:
-    def __init__(self, path: str, auth_token: str | None, role: str, body: str) -> None:
-        self.path = path
-        self.auth_token = auth_token
-        self.role = role
-        self.body = body
+def auth_handler(request: str) -> str | None:
+    match request:
+        case "auth_fail":
+            return "AuthHandler: Access Denied"
+        case _:
+            return None
 
 
-class Middleware(ABC):
-    def __init__(self) -> None:
-        self._next: Middleware | None = None
-
-    def link_with(self, next_middleware: "Middleware") -> "Middleware":
-        self._next = next_middleware
-        return next_middleware
-
-    def check(self, request: HTTPRequest) -> bool:
-        if self._next is None:
-            return True
-        return self._next.check(request)
+def rate_limit_handler(request: str) -> str | None:
+    match request:
+        case "rate_exceeded":
+            return "RateLimitHandler: 429 Too Many Requests"
+        case _:
+            return None
 
 
-class AuthTokenMiddleware(Middleware):
-    def check(self, request: HTTPRequest) -> bool:
-        if not request.auth_token or request.auth_token != "secret-token":
-            print("[Auth Error] Invalid or missing auth token")
-            return False
-        return super().check(request)
+def business_handler(request: str) -> str | None:
+    match request:
+        case "valid_order":
+            return "BusinessHandler: Order Processed Successfully"
+        case _:
+            return None
 
 
-class RolePermissionMiddleware(Middleware):
-    def check(self, request: HTTPRequest) -> bool:
-        if request.path.startswith("/admin") and request.role != "ADMIN":
-            print(f"[Forbidden] User role '{request.role}' cannot access admin path")
-            return False
-        return super().check(request)
+@dataclass
+class HandlerPipeline:
+    handlers: list[HandlerFn]
 
-
-class RateLimitMiddleware(Middleware):
-    def check(self, request: HTTPRequest) -> bool:
-        print("[RateLimit] Request passed rate limit check")
-        return super().check(request)
+    def handle(self, request: str) -> str:
+        for handler in self.handlers:
+            result = handler(request)
+            if result is not None:
+                return result
+        return "Pipeline: Request unhandled"
 
 
 if __name__ == "__main__":
-    pipeline = AuthTokenMiddleware()
-    pipeline.link_with(RolePermissionMiddleware()).link_with(RateLimitMiddleware())
-
-    valid_req = HTTPRequest("/admin/dashboard", "secret-token", "ADMIN", "data")
-    print("Valid request passed:", pipeline.check(valid_req))
-
-    unauthorized_req = HTTPRequest("/admin/dashboard", "secret-token", "GUEST", "data")
-    print("Guest admin request passed:", pipeline.check(unauthorized_req))
+    pipeline = HandlerPipeline([auth_handler, rate_limit_handler, business_handler])
+    print(pipeline.handle("rate_exceeded"))
+    print(pipeline.handle("valid_order"))
+    print(pipeline.handle("unknown"))
 '''
+
+PYTHON312_CODE = '''"""
+Chain of Responsibility - Python 3.12+ Example: PEP 695 Generic Pipeline
+"""
+from collections.abc import Callable
+
+type Step[Req, Res] = Callable[[Req], Res | None]
+
+
+class Pipeline[Req, Res]:
+    def __init__(self, steps: list[Step[Req, Res]]) -> None:
+        self._steps = steps
+
+    def execute(self, req: Req, fallback: Res) -> Res:
+        for step in self._steps:
+            res = step(req)
+            if res is not None:
+                return res
+        return fallback
+
+
+if __name__ == "__main__":
+    steps: list[Step[int, str]] = [
+        lambda n: "Negative" if n < 0 else None,
+        lambda n: "Zero" if n == 0 else None,
+        lambda n: "Positive" if n > 0 else None,
+    ]
+    p = Pipeline(steps)
+    print(p.execute(-5, "Unknown"))
+    print(p.execute(42, "Unknown"))
+'''
+
+CONCEPTUAL_CODE = CLASSIC_CODE
+REALWORLD_CODE = PYTHON310_CODE
+
+MATRIX_NOTES = {
+    "classic": "Linked-list object chain with abstract Handler and next_handler pointer management.",
+    "3.10": "Composable functional pipeline using list of Callable handlers with match-case branching.",
+    "3.12": "Type-safe generic middleware pipeline Pipeline[Req, Res] with PEP 695 type alias Step.",
+}
 
 SCAFFOLD_TEMPLATE = '''"""
 Chain of Responsibility Scaffolding Template
@@ -186,7 +217,9 @@ PATTERN = Pattern(
         "与中介者（Mediator）：责任链以链式传递请求，中介者集中消解双向网状通信",
         "与组合（Composite）：责任链常与组合模式一起使用，让叶节点沿着父节点链路冒泡传递请求",
     ],
-    conceptual_code=CONCEPTUAL_CODE,
-    realworld_code=REALWORLD_CODE,
+    classic_code=CLASSIC_CODE,
+    python310_code=PYTHON310_CODE,
+    python312_code=PYTHON312_CODE,
+    matrix_notes=MATRIX_NOTES,
     scaffold_template=SCAFFOLD_TEMPLATE,
 )

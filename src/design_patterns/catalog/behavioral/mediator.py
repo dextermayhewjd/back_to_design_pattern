@@ -2,8 +2,8 @@
 
 from design_patterns.models import Category, Pattern
 
-CONCEPTUAL_CODE = '''"""
-Mediator - Conceptual Example
+CLASSIC_CODE = '''"""
+Mediator - Conceptual Example (Classic GoF)
 """
 from abc import ABC, abstractmethod
 
@@ -77,39 +77,86 @@ if __name__ == "__main__":
     c2.do_d()
 '''
 
-REALWORLD_CODE = '''"""
-Mediator - Real-World Example: UI Dialog Component Coordinator
+PYTHON310_CODE = '''"""
+Mediator - Python 3.10+ Example: Event-Driven Hub with Match-Case
 """
-from abc import ABC, abstractmethod
+from collections.abc import Callable
+from dataclasses import dataclass, field
 
 
-class DialogMediator(ABC):
-    @abstractmethod
-    def notify(self, sender: str, event: str) -> None:
-        pass
+@dataclass(frozen=True)
+class Event:
+    topic: str
+    sender: str
+    data: dict[str, str] = field(default_factory=dict)
 
 
-class AuthenticationDialog(DialogMediator):
+class EventMediator:
     def __init__(self) -> None:
-        self.is_registration: bool = False
-        self.username: str = ""
-        self.password: str = ""
-        self.remember_me: bool = False
+        self._listeners: dict[str, list[Callable[[Event], None]]] = {}
 
-    def notify(self, sender: str, event: str) -> None:
-        if sender == "toggle_register":
-            self.is_registration = (event == "checked")
-            print(f"[Dialog] Switched mode: {'Registration' if self.is_registration else 'Login'}")
-        elif sender == "submit_button" and event == "clicked":
-            action = "Registering user" if self.is_registration else "Logging in user"
-            print(f"[Dialog] Executing {action} with credentials...")
+    def subscribe(self, topic: str, listener: Callable[[Event], None]) -> None:
+        self._listeners.setdefault(topic, []).append(listener)
+
+    def publish(self, event: Event) -> None:
+        match event.topic:
+            case "auth:login":
+                print(f"[Mediator Audit] User login triggered by {event.sender}")
+            case "cart:checkout":
+                print(f"[Mediator Audit] Checkout initiated with items {event.data}")
+            case _:
+                pass
+
+        for listener in self._listeners.get(event.topic, []):
+            listener(event)
 
 
 if __name__ == "__main__":
-    auth_form = AuthenticationDialog()
-    auth_form.notify("toggle_register", "checked")
-    auth_form.notify("submit_button", "clicked")
+    hub = EventMediator()
+    hub.subscribe("cart:checkout", lambda e: print(f"Inventory reserve notified: {e.data}"))
+    hub.publish(Event(topic="cart:checkout", sender="WebClient", data={"sku": "PROD-1", "qty": "2"}))
 '''
+
+PYTHON312_CODE = '''"""
+Mediator - Python 3.12+ Example: PEP 695 Generic Event Mediator
+"""
+from collections.abc import Callable
+from dataclasses import dataclass
+
+
+@dataclass
+class UIAction:
+    widget_id: str
+    payload: str
+
+
+class Mediator[Msg]:
+    def __init__(self) -> None:
+        self._handlers: list[Callable[[Msg], None]] = []
+
+    def register(self, handler: Callable[[Msg], None]) -> None:
+        self._handlers.append(handler)
+
+    def broadcast(self, message: Msg) -> None:
+        for handler in self._handlers:
+            handler(message)
+
+
+if __name__ == "__main__":
+    mediator: Mediator[UIAction] = Mediator()
+    mediator.register(lambda a: print(f"Handler 1 received action from {a.widget_id}: {a.payload}"))
+    mediator.register(lambda a: print(f"Handler 2 logging {a.payload}"))
+    mediator.broadcast(UIAction("btn_submit", "Click event triggered"))
+'''
+
+CONCEPTUAL_CODE = CLASSIC_CODE
+REALWORLD_CODE = PYTHON310_CODE
+
+MATRIX_NOTES = {
+    "classic": "Bi-directional object coupling with abstract Mediator and concrete colleague references.",
+    "3.10": "Centralized event hub using frozen dataclass Event and match-case topic routing.",
+    "3.12": "Type-safe generic event dispatch hub Mediator[Msg] parameterized with PEP 695.",
+}
 
 SCAFFOLD_TEMPLATE = '''"""
 Mediator Scaffolding Template
@@ -162,7 +209,9 @@ PATTERN = Pattern(
         "与外观（Facade）：外观通常是单向简化外部对子系统的调用；中介者集中内部组件之间的双向复杂通信",
         "与观察者（Observer）：中介者可以利用观察者模式实现动态订阅与事件通知",
     ],
-    conceptual_code=CONCEPTUAL_CODE,
-    realworld_code=REALWORLD_CODE,
+    classic_code=CLASSIC_CODE,
+    python310_code=PYTHON310_CODE,
+    python312_code=PYTHON312_CODE,
+    matrix_notes=MATRIX_NOTES,
     scaffold_template=SCAFFOLD_TEMPLATE,
 )

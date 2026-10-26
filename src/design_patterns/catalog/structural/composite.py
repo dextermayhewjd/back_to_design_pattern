@@ -2,8 +2,8 @@
 
 from design_patterns.models import Category, Pattern
 
-CONCEPTUAL_CODE = '''"""
-Composite - Conceptual Example
+CLASSIC_CODE = '''"""
+Composite - Conceptual Example (Classic GoF)
 """
 from abc import ABC, abstractmethod
 
@@ -79,53 +79,100 @@ if __name__ == "__main__":
     print(client_code(tree))
 '''
 
-REALWORLD_CODE = '''"""
-Composite - Real-World Example: File System Directory Tree and Size Calculation
+PYTHON310_CODE = '''"""
+Composite - Python 3.10+ Example: Dataclass Tree & Recursive Generator Traversal
 """
-from abc import ABC, abstractmethod
+from collections.abc import Iterator
+from dataclasses import dataclass, field
 
 
-class FileSystemItem(ABC):
-    def __init__(self, name: str) -> None:
-        self.name = name
+@dataclass
+class Item:
+    name: str
+    price: float
 
-    @abstractmethod
-    def get_size(self) -> int:
-        pass
+    def total(self) -> float:
+        return self.price
 
-
-class File(FileSystemItem):
-    def __init__(self, name: str, size: int) -> None:
-        super().__init__(name)
-        self._size = size
-
-    def get_size(self) -> int:
-        return self._size
+    def all_items(self) -> Iterator[str]:
+        yield f"{self.name} (${self.price:.2f})"
 
 
-class Directory(FileSystemItem):
-    def __init__(self, name: str) -> None:
-        super().__init__(name)
-        self._items: list[FileSystemItem] = []
+@dataclass
+class Box:
+    name: str
+    children: list[Item | "Box"] = field(default_factory=list)
 
-    def add(self, item: FileSystemItem) -> None:
-        self._items.append(item)
+    def add(self, child: Item | "Box") -> "Box":
+        self.children.append(child)
+        return self
 
-    def get_size(self) -> int:
-        return sum(item.get_size() for item in self._items)
+    def total(self) -> float:
+        return sum(child.total() for child in self.children)
+
+    def all_items(self) -> Iterator[str]:
+        yield f"Box: {self.name}"
+        for child in self.children:
+            yield from child.all_items()
 
 
 if __name__ == "__main__":
-    root = Directory("root")
-    docs = Directory("docs")
-    docs.add(File("readme.txt", 120))
-    docs.add(File("manual.pdf", 4500))
+    order = Box("Order #100")
+    electronics = Box("Electronics")
+    electronics.add(Item("Phone", 699.0)).add(Item("Headphones", 149.0))
+    order.add(electronics).add(Item("Sticker Pack", 4.99))
 
-    root.add(docs)
-    root.add(File(".gitignore", 30))
-
-    print(f"Total size of root directory: {root.get_size()} bytes")
+    print(f"Total: ${order.total():.2f}")
+    for entry in order.all_items():
+        print(f" - {entry}")
 '''
+
+PYTHON312_CODE = '''"""
+Composite - Python 3.12+ Example: PEP 695 Generic Tree & Pattern Matching
+"""
+from dataclasses import dataclass, field
+
+type Tree[T] = Leaf[T] | Group[T]
+
+
+@dataclass
+class Leaf[T]:
+    value: T
+
+    def render(self) -> str:
+        return f"Leaf({self.value})"
+
+
+@dataclass
+class Group[T]:
+    children: list[Tree[T]] = field(default_factory=list)
+
+    def add(self, child: Tree[T]) -> None:
+        self.children.append(child)
+
+    def render(self) -> str:
+        inner = ", ".join(c.render() for c in self.children)
+        return f"Group([{inner}])"
+
+
+if __name__ == "__main__":
+    root: Group[int] = Group()
+    sub: Group[int] = Group()
+    sub.add(Leaf(10))
+    sub.add(Leaf(20))
+    root.add(sub)
+    root.add(Leaf(30))
+    print(root.render())
+'''
+
+CONCEPTUAL_CODE = CLASSIC_CODE
+REALWORLD_CODE = PYTHON310_CODE
+
+MATRIX_NOTES = {
+    "classic": "Heavy Component base class with empty method stubs for add/remove/getChild.",
+    "3.10": "Replaced abstract boilerplate with union types (Item | Box), dataclasses, and yield from generators.",
+    "3.12": "Type-safe recursive generic trees via PEP 695 type Tree[T] = Leaf[T] | Group[T].",
+}
 
 SCAFFOLD_TEMPLATE = '''"""
 Composite Scaffolding Template
@@ -186,7 +233,9 @@ PATTERN = Pattern(
         "与访问者（Visitor）：访问者模式常用于在整个组合树结构上执行特定操作",
         "与迭代器（Iterator）：可以使用迭代器遍历组合树中的元素",
     ],
-    conceptual_code=CONCEPTUAL_CODE,
-    realworld_code=REALWORLD_CODE,
+    classic_code=CLASSIC_CODE,
+    python310_code=PYTHON310_CODE,
+    python312_code=PYTHON312_CODE,
+    matrix_notes=MATRIX_NOTES,
     scaffold_template=SCAFFOLD_TEMPLATE,
 )

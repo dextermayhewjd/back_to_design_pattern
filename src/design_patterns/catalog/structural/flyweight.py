@@ -2,8 +2,8 @@
 
 from design_patterns.models import Category, Pattern
 
-CONCEPTUAL_CODE = '''"""
-Flyweight - Conceptual Example
+CLASSIC_CODE = '''"""
+Flyweight - Conceptual Example (Classic GoF)
 """
 import json
 
@@ -56,54 +56,87 @@ if __name__ == "__main__":
     print(flyweight.operation(["CL234IR", "James Doe"]))
 '''
 
-REALWORLD_CODE = '''"""
-Flyweight - Real-World Example: Forest Tree Rendering (Memory Optimization)
+PYTHON310_CODE = '''"""
+Flyweight - Python 3.10+ Example: Frozen Slots Dataclass & lru_cache Factory
 """
+from dataclasses import dataclass
+from functools import lru_cache
 
 
+@dataclass(frozen=True, slots=True)
 class TreeType:
-    def __init__(self, name: str, color: str, texture: str) -> None:
-        self.name = name
-        self.color = color
-        self.texture = texture
-
-    def draw(self, x: int, y: int) -> str:
-        return f"Drawing tree '{self.name}' [color={self.color}] at coordinate ({x}, {y})"
+    name: str
+    color: str
+    texture: str
 
 
-class TreeFactory:
-    _tree_types: dict[str, TreeType] = {}
-
-    @classmethod
-    def get_tree_type(cls, name: str, color: str, texture: str) -> TreeType:
-        key = f"{name}_{color}_{texture}"
-        if key not in cls._tree_types:
-            cls._tree_types[key] = TreeType(name, color, texture)
-        return cls._tree_types[key]
+@lru_cache(maxsize=128)
+def get_tree_type(name: str, color: str, texture: str) -> TreeType:
+    """Flyweight factory: returns cached immutable intrinsic state."""
+    return TreeType(name=name, color=color, texture=texture)
 
 
-class Forest:
-    def __init__(self) -> None:
-        self.trees: list[tuple[int, int, TreeType]] = []
+@dataclass(slots=True)
+class Tree:
+    x: int
+    y: int
+    tree_type: TreeType
 
-    def plant_tree(self, x: int, y: int, name: str, color: str, texture: str) -> None:
-        type_instance = TreeFactory.get_tree_type(name, color, texture)
-        self.trees.append((x, y, type_instance))
-
-    def render(self) -> list[str]:
-        return [tree_type.draw(x, y) for x, y, tree_type in self.trees]
+    def render(self) -> str:
+        return f"Tree '{self.tree_type.name}' at ({self.x}, {self.y})"
 
 
 if __name__ == "__main__":
-    forest = Forest()
-    forest.plant_tree(10, 20, "Oak", "Green", "OakTexture.png")
-    forest.plant_tree(15, 25, "Oak", "Green", "OakTexture.png")
-    forest.plant_tree(30, 40, "Pine", "DarkGreen", "PineTexture.png")
+    t1 = get_tree_type("Oak", "Green", "rough.png")
+    t2 = get_tree_type("Oak", "Green", "rough.png")
+    print(f"Flyweights identical: {t1 is t2}")
 
-    print(f"Total trees planted: {len(forest.trees)}")
-    print(f"Distinct TreeType flyweight objects: {len(TreeFactory._tree_types)}")
-    print("\\n".join(forest.render()[:2]))
+    forest = [Tree(i, i * 2, t1) for i in range(5)]
+    print(f"Planted {len(forest)} trees using 1 flyweight instance.")
+    print(forest[0].render())
 '''
+
+PYTHON312_CODE = '''"""
+Flyweight - Python 3.12+ Example: PEP 695 Generic Flyweight Pool
+"""
+from collections.abc import Hashable
+from dataclasses import dataclass
+
+
+class FlyweightPool[K: Hashable, V]:
+    def __init__(self, factory) -> None:
+        self._factory = factory
+        self._pool: dict[K, V] = {}
+
+    def get(self, key: K) -> V:
+        if key not in self._pool:
+            self._pool[key] = self._factory(key)
+        return self._pool[key]
+
+
+@dataclass(frozen=True, slots=True)
+class FontStyle:
+    font_family: str
+    size: int
+
+
+if __name__ == "__main__":
+    pool = FlyweightPool[tuple[str, int], FontStyle](
+        factory=lambda k: FontStyle(k[0], k[1])
+    )
+    f1 = pool.get(("Helvetica", 12))
+    f2 = pool.get(("Helvetica", 12))
+    print(f"Cached font shared: {f1 is f2}, font: {f1}")
+'''
+
+CONCEPTUAL_CODE = CLASSIC_CODE
+REALWORLD_CODE = PYTHON310_CODE
+
+MATRIX_NOTES = {
+    "classic": "Manual factory dictionary cache holding mutable intrinsic state objects.",
+    "3.10": "Zero-boilerplate flyweights using @functools.lru_cache and dataclass(frozen=True, slots=True).",
+    "3.12": "Type-safe generic flyweight pool FlyweightPool[K: Hashable, V] with PEP 695 syntax.",
+}
 
 SCAFFOLD_TEMPLATE = '''"""
 Flyweight Scaffolding Template
@@ -156,7 +189,9 @@ PATTERN = Pattern(
         "与单例（Singleton）：享元通常有多个共享实例且状态不可变；单例只有单个全局可变或不可变实例",
         "与组合（Composite）：享元可以与组合模式结合，将组合树中的共享叶子节点实现为享元",
     ],
-    conceptual_code=CONCEPTUAL_CODE,
-    realworld_code=REALWORLD_CODE,
+    classic_code=CLASSIC_CODE,
+    python310_code=PYTHON310_CODE,
+    python312_code=PYTHON312_CODE,
+    matrix_notes=MATRIX_NOTES,
     scaffold_template=SCAFFOLD_TEMPLATE,
 )

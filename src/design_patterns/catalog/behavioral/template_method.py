@@ -2,8 +2,8 @@
 
 from design_patterns.models import Category, Pattern
 
-CONCEPTUAL_CODE = '''"""
-Template Method - Conceptual Example
+CLASSIC_CODE = '''"""
+Template Method - Conceptual Example (Classic GoF)
 """
 from abc import ABC, abstractmethod
 
@@ -72,60 +72,82 @@ if __name__ == "__main__":
     client_code(ConcreteClass2())
 '''
 
-REALWORLD_CODE = '''"""
-Template Method - Real-World Example: Data Miner & File Parser Pipeline
+PYTHON310_CODE = '''"""
+Template Method - Python 3.10+ Example: Higher-Order Function Workflow with Hooks
 """
-from abc import ABC, abstractmethod
+from collections.abc import Callable
+from typing import Any
 
 
-class DataMiner(ABC):
-    def mine(self, path: str) -> str:
-        raw = self.open_file(path)
-        data = self.extract_data(raw)
-        analyzed = self.parse_data(data)
-        self.send_report(analyzed)
-        self.close_file(raw)
-        return f"Completed mining for {path}"
+def process_pipeline(
+    raw_data: str,
+    parser: Callable[[str], dict[str, Any]],
+    formatter: Callable[[dict[str, Any]], str] | None = None,
+) -> str:
+    """Template workflow: load -> parse -> format -> deliver."""
+    print("Pipeline: Validating raw input data...")
+    parsed = parser(raw_data)
 
-    def open_file(self, path: str) -> str:
-        print(f"Opening generic file handle at: {path}")
-        return path
-
-    def close_file(self, raw: str) -> None:
-        print(f"Closing file handle at: {raw}")
-
-    def send_report(self, analysis: str) -> None:
-        print(f"Delivering analytics report: {analysis}")
-
-    @abstractmethod
-    def extract_data(self, raw: str) -> str:
-        pass
-
-    @abstractmethod
-    def parse_data(self, data: str) -> str:
-        pass
-
-
-class CSVDataMiner(DataMiner):
-    def extract_data(self, raw: str) -> str:
-        return f"CSV rows extracted from {raw}"
-
-    def parse_data(self, data: str) -> str:
-        return f"Parsed comma-separated fields: [{data}]"
-
-
-class PDFDataMiner(DataMiner):
-    def extract_data(self, raw: str) -> str:
-        return f"Raw PDF text streams extracted from {raw}"
-
-    def parse_data(self, data: str) -> str:
-        return f"Parsed PDF layout tables: [{data}]"
+    print("Pipeline: Processing internal business rules...")
+    if formatter:
+        return formatter(parsed)
+    return f"Standard Output: {parsed}"
 
 
 if __name__ == "__main__":
-    miner = CSVDataMiner()
-    print(miner.mine("/data/sales_2026.csv"))
+    def json_parser(data: str) -> dict[str, Any]:
+        return {"type": "json", "content": data.strip("{}")}
+
+    result = process_pipeline(
+        raw_data="{user: 'Alice'}",
+        parser=json_parser,
+        formatter=lambda d: f"Custom JSON Report -> {d['content']}",
+    )
+    print(result)
 '''
+
+PYTHON312_CODE = '''"""
+Template Method - Python 3.12+ Example: PEP 695 Generic Workflow & @override
+"""
+from typing import override
+
+
+class BaseWorkflow[T, R]:
+    def execute(self, payload: T) -> R:
+        cleaned = self.sanitize(payload)
+        return self.process(cleaned)
+
+    def sanitize(self, payload: T) -> T:
+        return payload
+
+    def process(self, payload: T) -> R:
+        raise NotImplementedError
+
+
+class TextWorkflow(BaseWorkflow[str, int]):
+    @override
+    def sanitize(self, payload: str) -> str:
+        return payload.strip()
+
+    @override
+    def process(self, payload: str) -> int:
+        return len(payload)
+
+
+if __name__ == "__main__":
+    wf = TextWorkflow()
+    count = wf.execute("   Hello World   ")
+    print(f"Workflow processed count: {count}")
+'''
+
+CONCEPTUAL_CODE = CLASSIC_CODE
+REALWORLD_CODE = PYTHON310_CODE
+
+MATRIX_NOTES = {
+    "classic": "Subclass inheritance tree with abstract steps and hook methods in AbstractClass.",
+    "3.10": "Replaced inheritance hierarchy with higher-order functions and optional hook Callables.",
+    "3.12": "Type-safe generic pipeline BaseWorkflow[T, R] with @override and PEP 695 type parameters.",
+}
 
 SCAFFOLD_TEMPLATE = '''"""
 Template Method Scaffolding Template
@@ -181,7 +203,9 @@ PATTERN = Pattern(
         "与工厂方法（Factory Method）：工厂方法常作为大型模板方法模式的一个特定步骤存在",
         "与策略（Strategy）：模板方法基于类继承来改变算法的部分步骤；策略基于对象组合来改变整个算法",
     ],
-    conceptual_code=CONCEPTUAL_CODE,
-    realworld_code=REALWORLD_CODE,
+    classic_code=CLASSIC_CODE,
+    python310_code=PYTHON310_CODE,
+    python312_code=PYTHON312_CODE,
+    matrix_notes=MATRIX_NOTES,
     scaffold_template=SCAFFOLD_TEMPLATE,
 )

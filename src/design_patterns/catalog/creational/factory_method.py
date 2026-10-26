@@ -2,8 +2,8 @@
 
 from design_patterns.models import Category, Pattern
 
-CONCEPTUAL_CODE = '''"""
-Factory Method - Conceptual Example
+CLASSIC_CODE = '''"""
+Factory Method - Conceptual Example (Classic GoF)
 """
 from abc import ABC, abstractmethod
 
@@ -53,62 +53,96 @@ if __name__ == "__main__":
     print(client_code(ConcreteCreator2()))
 '''
 
-REALWORLD_CODE = '''"""
-Factory Method - Real-World Example: Cross-Platform UI Dialogs
+PYTHON310_CODE = '''"""
+Factory Method - Python 3.10+ Example: Registry & Match-Case Factory
 """
-from abc import ABC, abstractmethod
+from collections.abc import Callable
+from dataclasses import dataclass
 
 
-class Button(ABC):
-    @abstractmethod
+@dataclass
+class Button:
+    label: str
+    action: str
+
     def render(self) -> str:
-        pass
-
-    @abstractmethod
-    def on_click(self) -> str:
-        pass
+        return f"[{self.label} -> {self.action}]"
 
 
-class WindowsButton(Button):
-    def render(self) -> str:
-        return "<WindowsButton>OK</WindowsButton>"
-
-    def on_click(self) -> str:
-        return "Windows click event emitted"
-
-
-class HTMLButton(Button):
-    def render(self) -> str:
-        return "<button type='submit'>OK</button>"
-
-    def on_click(self) -> str:
-        return "HTML form submitted"
+def create_button(dialog_type: str) -> Button:
+    match dialog_type:
+        case "windows":
+            return Button(label="OK", action="windows_click")
+        case "web":
+            return Button(label="Submit", action="http_post")
+        case "mobile":
+            return Button(label="Tap", action="touch_event")
+        case _:
+            raise ValueError(f"Unknown dialog type: {dialog_type}")
 
 
-class Dialog(ABC):
-    @abstractmethod
-    def create_button(self) -> Button:
-        pass
+class Dialog:
+    def __init__(self, factory: Callable[[], Button] | None = None) -> None:
+        self.factory = factory or (lambda: create_button("web"))
 
     def render_window(self) -> str:
-        button = self.create_button()
-        return f"Rendering window with button: {button.render()} -> {button.on_click()}"
-
-
-class WindowsDialog(Dialog):
-    def create_button(self) -> Button:
-        return WindowsButton()
-
-
-class WebDialog(Dialog):
-    def create_button(self) -> Button:
-        return HTMLButton()
+        button = self.factory()
+        return f"Dialog rendering: {button.render()}"
 
 
 if __name__ == "__main__":
-    dialog = WebDialog()
-    print(dialog.render_window())
+    win_dialog = Dialog(lambda: create_button("windows"))
+    print(win_dialog.render_window())
+    web_dialog = Dialog()
+    print(web_dialog.render_window())
 '''
+
+PYTHON312_CODE = '''"""
+Factory Method - Python 3.12+ Example: PEP 695 Generic Factory & Type Alias
+"""
+from collections.abc import Callable
+from dataclasses import dataclass
+from typing import override
+
+type Factory[T] = Callable[[], T]
+
+
+@dataclass
+class Button:
+    label: str
+
+    def render(self) -> str:
+        return f"Button({self.label})"
+
+
+class HTMLButton(Button):
+    @override
+    def render(self) -> str:
+        return f"<button>{self.label}</button>"
+
+
+class Dialog[T: Button]:
+    def __init__(self, factory: Factory[T]) -> None:
+        self._factory = factory
+
+    def render(self) -> str:
+        btn = self._factory()
+        return f"Dialog container with: {btn.render()}"
+
+
+if __name__ == "__main__":
+    html_dialog = Dialog(lambda: HTMLButton("Submit"))
+    print(html_dialog.render())
+'''
+
+CONCEPTUAL_CODE = CLASSIC_CODE
+REALWORLD_CODE = PYTHON310_CODE
+
+MATRIX_NOTES = {
+    "classic": "Classic GoF inheritance hierarchy with abstract Creator and Product base classes using abc.ABC.",
+    "3.10": "Replaced heavy Creator class hierarchy with Callable factories, dataclasses, and match-case dispatch.",
+    "3.12": "Leveraged PEP 695 generic classes Dialog[T: Button], parameterized type alias Factory[T], and @override.",
+}
 
 SCAFFOLD_TEMPLATE = '''"""
 Factory Method Scaffolding Template
@@ -175,7 +209,9 @@ PATTERN = Pattern(
         "与原型（Prototype）：原型不需要子类化，但需要初始化克隆；工厂方法依赖子类继承",
         "与模板方法（Template Method）：工厂方法常作为大型模板方法的一个步骤存在",
     ],
-    conceptual_code=CONCEPTUAL_CODE,
-    realworld_code=REALWORLD_CODE,
+    classic_code=CLASSIC_CODE,
+    python310_code=PYTHON310_CODE,
+    python312_code=PYTHON312_CODE,
+    matrix_notes=MATRIX_NOTES,
     scaffold_template=SCAFFOLD_TEMPLATE,
 )

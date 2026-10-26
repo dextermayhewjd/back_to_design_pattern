@@ -2,8 +2,8 @@
 
 from design_patterns.models import Category, Pattern
 
-CONCEPTUAL_CODE = '''"""
-Observer - Conceptual Example
+CLASSIC_CODE = '''"""
+Observer - Conceptual Example (Classic GoF)
 """
 from abc import ABC, abstractmethod
 from random import randrange
@@ -82,44 +82,81 @@ if __name__ == "__main__":
     subject.some_business_logic()
 '''
 
-REALWORLD_CODE = '''"""
-Observer - Real-World Example: Event Dispatcher & Notification Bus
+PYTHON310_CODE = '''"""
+Observer - Python 3.10+ Example: Callable Observers & Subscription Context Manager
 """
-from collections import defaultdict
 from collections.abc import Callable
+from contextlib import contextmanager
+from dataclasses import dataclass, field
 from typing import Any
 
 
-class EventManager:
-    def __init__(self) -> None:
-        self._listeners: dict[str, list[Callable[[Any], None]]] = defaultdict(list)
+@dataclass
+class Publisher:
+    _subscribers: list[Callable[[str, Any], None]] = field(default_factory=list)
 
-    def subscribe(self, event_type: str, listener: Callable[[Any], None]) -> None:
-        self._listeners[event_type].append(listener)
+    def subscribe(self, callback: Callable[[str, Any], None]) -> Callable[[], None]:
+        self._subscribers.append(callback)
+        return lambda: self._subscribers.remove(callback) if callback in self._subscribers else None
 
-    def unsubscribe(self, event_type: str, listener: Callable[[Any], None]) -> None:
-        if listener in self._listeners[event_type]:
-            self._listeners[event_type].remove(listener)
+    @contextmanager
+    def temp_subscription(self, callback: Callable[[str, Any], None]):
+        unsubscribe = self.subscribe(callback)
+        try:
+            yield
+        finally:
+            unsubscribe()
 
-    def notify(self, event_type: str, data: Any) -> None:
-        for listener in self._listeners[event_type]:
-            listener(data)
+    def notify(self, event: str, data: Any) -> None:
+        for cb in list(self._subscribers):
+            cb(event, data)
 
 
 if __name__ == "__main__":
-    bus = EventManager()
-
-    def email_notifier(user: str) -> None:
-        print(f"[Email Service] Sending welcome email to: {user}")
-
-    def audit_logger(user: str) -> None:
-        print(f"[Audit Log] User registered in DB: {user}")
-
-    bus.subscribe("user_registered", email_notifier)
-    bus.subscribe("user_registered", audit_logger)
-
-    bus.notify("user_registered", "alice@example.com")
+    pub = Publisher()
+    received = []
+    unsub = pub.subscribe(lambda evt, data: received.append(f"{evt}:{data}"))
+    pub.notify("price_update", 99.5)
+    print("Received:", received)
+    unsub()
+    pub.notify("price_update", 100.0)
+    print("After unsubscribe:", received)
 '''
+
+PYTHON312_CODE = '''"""
+Observer - Python 3.12+ Example: PEP 695 Generic EventSource
+"""
+from collections.abc import Callable
+
+type Listener[T] = Callable[[T], None]
+
+
+class EventSource[T]:
+    def __init__(self) -> None:
+        self._listeners: list[Listener[T]] = []
+
+    def add_listener(self, listener: Listener[T]) -> None:
+        self._listeners.append(listener)
+
+    def emit(self, event: T) -> None:
+        for listener in self._listeners:
+            listener(event)
+
+
+if __name__ == "__main__":
+    source: EventSource[dict[str, int]] = EventSource()
+    source.add_listener(lambda payload: print(f"Listener received: {payload}"))
+    source.emit({"temperature": 24, "humidity": 60})
+'''
+
+CONCEPTUAL_CODE = CLASSIC_CODE
+REALWORLD_CODE = PYTHON310_CODE
+
+MATRIX_NOTES = {
+    "classic": "Heavy Subject and Observer ABC interfaces with rigid update(self) callbacks.",
+    "3.10": "Functional event listeners using Callable and contextmanager subscription lifecycles.",
+    "3.12": "Type-safe generic event broadcaster EventSource[T] parameterized via PEP 695.",
+}
 
 SCAFFOLD_TEMPLATE = '''"""
 Observer Scaffolding Template
@@ -174,7 +211,9 @@ PATTERN = Pattern(
     relations=[
         "与中介者（Mediator）：中介者集中消解双向通信，而观察者模式专注于单向从发布者到多个观察者的动态广播",
     ],
-    conceptual_code=CONCEPTUAL_CODE,
-    realworld_code=REALWORLD_CODE,
+    classic_code=CLASSIC_CODE,
+    python310_code=PYTHON310_CODE,
+    python312_code=PYTHON312_CODE,
+    matrix_notes=MATRIX_NOTES,
     scaffold_template=SCAFFOLD_TEMPLATE,
 )

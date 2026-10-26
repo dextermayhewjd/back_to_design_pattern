@@ -2,8 +2,8 @@
 
 from design_patterns.models import Category, Pattern
 
-CONCEPTUAL_CODE = '''"""
-Prototype - Conceptual Example
+CLASSIC_CODE = '''"""
+Prototype - Conceptual Example (Classic GoF)
 """
 import copy
 from typing import Any
@@ -58,34 +58,67 @@ if __name__ == "__main__":
     print("Prototype components cloned successfully.")
 '''
 
-REALWORLD_CODE = '''"""
-Prototype - Real-World Example: Document and Page Template Duplication
+PYTHON310_CODE = '''"""
+Prototype - Python 3.10+ Example: Dataclass Cloning & dataclasses.replace
 """
-import copy
+from dataclasses import dataclass, field, replace
 
 
-class Page:
-    def __init__(self, title: str, content: str, tags: list[str]) -> None:
-        self.title = title
-        self.content = content
-        self.tags = tags
+@dataclass
+class GraphicElement:
+    shape: str
+    color: str
+    metadata: dict[str, str] = field(default_factory=dict)
 
-    def clone(self) -> "Page":
-        return copy.deepcopy(self)
-
-    def __repr__(self) -> str:
-        return f"Page(title={self.title!r}, tags={self.tags!r})"
+    def clone(self, **overrides) -> "GraphicElement":
+        return replace(self, **overrides)
 
 
 if __name__ == "__main__":
-    original = Page("Landing Page Template", "Hero section...", ["marketing", "q4"])
-    cloned = original.clone()
-    cloned.title = "Special Campaign Landing Page"
-    cloned.tags.append("campaign")
-
-    print("Original:", original)
-    print("Cloned:", cloned)
+    proto = GraphicElement(shape="circle", color="red", metadata={"layer": "1"})
+    clone1 = proto.clone(color="blue")
+    print(f"Original: {proto}")
+    print(f"Cloned:   {clone1}")
 '''
+
+PYTHON312_CODE = '''"""
+Prototype - Python 3.12+ Example: typing.Self Type-Safe Cloning
+"""
+from dataclasses import dataclass, replace
+from typing import Self
+
+type Properties = dict[str, str | int]
+
+
+@dataclass(frozen=True)
+class DocumentTemplate:
+    title: str
+    content: str
+    properties: Properties
+
+    def clone_with(self, **changes) -> Self:
+        return replace(self, **changes)
+
+
+if __name__ == "__main__":
+    base_doc = DocumentTemplate(
+        title="Report Template",
+        content="Standard body text",
+        properties={"version": 1, "status": "draft"},
+    )
+    custom_doc = base_doc.clone_with(title="Q4 Financial Report")
+    print(f"Base: {base_doc.title}")
+    print(f"Copy: {custom_doc.title}")
+'''
+
+CONCEPTUAL_CODE = CLASSIC_CODE
+REALWORLD_CODE = PYTHON310_CODE
+
+MATRIX_NOTES = {
+    "classic": "Manual __copy__ and __deepcopy__ dunder implementation handling dict state copying.",
+    "3.10": "Built-in dataclasses.replace eliminates manual cloning methods and field copy logic.",
+    "3.12": "Utilized typing.Self return types for seamless derived-class cloning with PEP 695 type alias.",
+}
 
 SCAFFOLD_TEMPLATE = '''"""
 Prototype Scaffolding Template
@@ -138,7 +171,9 @@ PATTERN = Pattern(
         "与单例（Singleton）：原型通过复制创建新对象，单例保证全局唯一实例",
         "与工厂方法（Factory Method）：原型可以替代工厂方法，避免为不同对象创建子类",
     ],
-    conceptual_code=CONCEPTUAL_CODE,
-    realworld_code=REALWORLD_CODE,
+    classic_code=CLASSIC_CODE,
+    python310_code=PYTHON310_CODE,
+    python312_code=PYTHON312_CODE,
+    matrix_notes=MATRIX_NOTES,
     scaffold_template=SCAFFOLD_TEMPLATE,
 )

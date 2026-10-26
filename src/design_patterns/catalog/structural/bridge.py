@@ -2,8 +2,8 @@
 
 from design_patterns.models import Category, Pattern
 
-CONCEPTUAL_CODE = '''"""
-Bridge - Conceptual Example
+CLASSIC_CODE = '''"""
+Bridge - Conceptual Example (Classic GoF)
 """
 from abc import ABC, abstractmethod
 
@@ -51,106 +51,116 @@ if __name__ == "__main__":
     print(client_code(abs_2))
 '''
 
-REALWORLD_CODE = '''"""
-Bridge - Real-World Example: Remotes and Devices
+PYTHON310_CODE = '''"""
+Bridge - Python 3.10+ Example: Protocol Device & Dataclass Controllers
 """
-from abc import ABC, abstractmethod
+from dataclasses import dataclass
+from typing import Protocol
 
 
-class Device(ABC):
-    @abstractmethod
-    def is_enabled(self) -> bool:
-        pass
-
-    @abstractmethod
-    def enable(self) -> None:
-        pass
-
-    @abstractmethod
-    def disable(self) -> None:
-        pass
-
-    @abstractmethod
-    def get_volume(self) -> int:
-        pass
-
-    @abstractmethod
-    def set_volume(self, percent: int) -> None:
-        pass
+class Device(Protocol):
+    def turn_on(self) -> str: ...
+    def turn_off(self) -> str: ...
+    def set_channel(self, channel: int) -> str: ...
 
 
-class Radio(Device):
-    def __init__(self) -> None:
-        self._on: bool = False
-        self._volume: int = 30
+class SmartTV:
+    def turn_on(self) -> str:
+        return "SmartTV display waking up"
 
-    def is_enabled(self) -> bool:
-        return self._on
+    def turn_off(self) -> str:
+        return "SmartTV entering standby"
 
-    def enable(self) -> None:
-        self._on = True
-
-    def disable(self) -> None:
-        self._on = False
-
-    def get_volume(self) -> int:
-        return self._volume
-
-    def set_volume(self, percent: int) -> None:
-        self._volume = max(0, min(100, percent))
+    def set_channel(self, channel: int) -> str:
+        return f"SmartTV streaming channel {channel}"
 
 
-class TV(Device):
-    def __init__(self) -> None:
-        self._on: bool = False
-        self._volume: int = 50
+class Radio:
+    def turn_on(self) -> str:
+        return "Radio power amp engaged"
 
-    def is_enabled(self) -> bool:
-        return self._on
+    def turn_off(self) -> str:
+        return "Radio powered down"
 
-    def enable(self) -> None:
-        self._on = True
-
-    def disable(self) -> None:
-        self._on = False
-
-    def get_volume(self) -> int:
-        return self._volume
-
-    def set_volume(self, percent: int) -> None:
-        self._volume = max(0, min(100, percent))
+    def set_channel(self, channel: int) -> str:
+        return f"Radio tuned to FM {channel}MHz"
 
 
-class RemoteControl:
-    def __init__(self, device: Device) -> None:
-        self.device = device
+@dataclass
+class BasicRemote:
+    device: Device
 
-    def toggle_power(self) -> str:
-        if self.device.is_enabled():
-            self.device.disable()
-            return "Device turned OFF"
-        else:
-            self.device.enable()
-            return "Device turned ON"
-
-    def volume_up(self) -> str:
-        self.device.set_volume(self.device.get_volume() + 10)
-        return f"Volume set to {self.device.get_volume()}%"
+    def power(self) -> str:
+        return self.device.turn_on()
 
 
-class AdvancedRemoteControl(RemoteControl):
-    def mute(self) -> str:
-        self.device.set_volume(0)
-        return "Device muted"
+@dataclass
+class VoiceRemote(BasicRemote):
+    def voice_command(self, cmd: str) -> str:
+        match cmd:
+            case "on":
+                return self.device.turn_on()
+            case "off":
+                return self.device.turn_off()
+            case _:
+                return f"Voice unrecognized: {cmd}"
 
 
 if __name__ == "__main__":
-    tv = TV()
-    remote = AdvancedRemoteControl(tv)
-    print(remote.toggle_power())
-    print(remote.volume_up())
-    print(remote.mute())
+    tv = SmartTV()
+    remote = VoiceRemote(tv)
+    print(remote.power())
+    print(remote.voice_command("off"))
 '''
+
+PYTHON312_CODE = '''"""
+Bridge - Python 3.12+ Example: PEP 695 Generic Bridge & @override
+"""
+from dataclasses import dataclass
+from typing import Protocol, override
+
+
+class RenderBackend(Protocol):
+    def draw_primitive(self, name: str) -> str: ...
+
+
+class VectorRenderer:
+    def draw_primitive(self, name: str) -> str:
+        return f"Vector drawing of {name}"
+
+
+class RasterRenderer:
+    def draw_primitive(self, name: str) -> str:
+        return f"Raster pixels for {name}"
+
+
+@dataclass
+class Shape[R: RenderBackend]:
+    renderer: R
+
+    def draw(self) -> str:
+        return self.renderer.draw_primitive("generic_shape")
+
+
+class Circle[R: RenderBackend](Shape[R]):
+    @override
+    def draw(self) -> str:
+        return self.renderer.draw_primitive("circle")
+
+
+if __name__ == "__main__":
+    c = Circle(VectorRenderer())
+    print(c.draw())
+'''
+
+CONCEPTUAL_CODE = CLASSIC_CODE
+REALWORLD_CODE = PYTHON310_CODE
+
+MATRIX_NOTES = {
+    "classic": "Dual abstract inheritance hierarchies for Abstraction and Implementor using abc.ABC.",
+    "3.10": "Structural typing with Protocol for implementors and dataclass compositions.",
+    "3.12": "PEP 695 type parameters Shape[R: RenderBackend] providing type-safe renderer binding and @override.",
+}
 
 SCAFFOLD_TEMPLATE = '''"""
 Bridge Scaffolding Template
@@ -204,7 +214,9 @@ PATTERN = Pattern(
         "与适配器（Adapter）：适配器通常用于后期让不兼容的接口协同，桥接在系统设计前期解耦独立演化维度",
         "与抽象工厂（Abstract Factory）：抽象工厂常与桥接模式结合，负责构建特定的桥接结构",
     ],
-    conceptual_code=CONCEPTUAL_CODE,
-    realworld_code=REALWORLD_CODE,
+    classic_code=CLASSIC_CODE,
+    python310_code=PYTHON310_CODE,
+    python312_code=PYTHON312_CODE,
+    matrix_notes=MATRIX_NOTES,
     scaffold_template=SCAFFOLD_TEMPLATE,
 )

@@ -2,8 +2,8 @@
 
 from design_patterns.models import Category, Pattern
 
-CONCEPTUAL_CODE = '''"""
-Facade - Conceptual Example
+CLASSIC_CODE = '''"""
+Facade - Conceptual Example (Classic GoF)
 """
 
 
@@ -48,43 +48,82 @@ if __name__ == "__main__":
     print(client_code(facade))
 '''
 
-REALWORLD_CODE = '''"""
-Facade - Real-World Example: Media File Conversion Subsystem
+PYTHON310_CODE = '''"""
+Facade - Python 3.10+ Example: Dataclass Facade & Multi-Subsystem Coordination
 """
+from dataclasses import dataclass, field
 
 
-class VideoDecoder:
-    def decode(self, file_path: str) -> str:
-        return f"Decoded raw video stream from {file_path}"
+class AuthSubsystem:
+    def verify_token(self, token: str) -> bool:
+        return token == "valid-token"
 
 
-class AudioMixer:
-    def fix_audio(self, raw_audio: str) -> str:
-        return f"Normalized audio levels: [{raw_audio}]"
+class PaymentSubsystem:
+    def charge(self, amount: float) -> str:
+        return f"Charged ${amount:.2f}"
 
 
-class BitrateCompressor:
-    def compress(self, stream: str, format_type: str) -> str:
-        return f"Compressed [{stream}] to {format_type} 1080p"
+class NotificationSubsystem:
+    def send_receipt(self, email: str, details: str) -> str:
+        return f"Receipt sent to {email}: {details}"
 
 
-class VideoConverterFacade:
-    def __init__(self) -> None:
-        self.decoder = VideoDecoder()
-        self.audio = AudioMixer()
-        self.compressor = BitrateCompressor()
+@dataclass
+class CheckoutFacade:
+    auth: AuthSubsystem = field(default_factory=AuthSubsystem)
+    payment: PaymentSubsystem = field(default_factory=PaymentSubsystem)
+    notifier: NotificationSubsystem = field(default_factory=NotificationSubsystem)
 
-    def convert_video(self, filename: str, target_format: str) -> str:
-        raw_video = self.decoder.decode(filename)
-        clean_audio = self.audio.fix_audio("stereo 44.1kHz")
-        output = self.compressor.compress(f"{raw_video} with {clean_audio}", target_format)
-        return f"Successfully converted: {output}"
+    def process_order(self, token: str, email: str, amount: float) -> str:
+        if not self.auth.verify_token(token):
+            raise PermissionError("Invalid authentication token")
+        receipt = self.payment.charge(amount)
+        notify_res = self.notifier.send_receipt(email, receipt)
+        return f"Order processed: {receipt} | {notify_res}"
 
 
 if __name__ == "__main__":
-    converter = VideoConverterFacade()
-    print(converter.convert_video("holiday_clip.mov", "mp4"))
+    facade = CheckoutFacade()
+    result = facade.process_order("valid-token", "user@example.com", 99.99)
+    print(result)
 '''
+
+PYTHON312_CODE = '''"""
+Facade - Python 3.12+ Example: PEP 695 Generic Pipeline Facade
+"""
+from collections.abc import Callable
+
+type Stage[T, U] = Callable[[T], U]
+
+
+class PipelineFacade[In, Out]:
+    def __init__(self, step1: Stage[In, str], step2: Stage[str, Out]) -> None:
+        self._step1 = step1
+        self._step2 = step2
+
+    def execute(self, payload: In) -> Out:
+        intermediate = self._step1(payload)
+        return self._step2(intermediate)
+
+
+if __name__ == "__main__":
+    pipeline = PipelineFacade[dict[str, int], int](
+        step1=lambda d: f"Length={len(d)}",
+        step2=lambda s: len(s),
+    )
+    result = pipeline.execute({"a": 1, "b": 2})
+    print(f"Pipeline Facade output: {result}")
+'''
+
+CONCEPTUAL_CODE = CLASSIC_CODE
+REALWORLD_CODE = PYTHON310_CODE
+
+MATRIX_NOTES = {
+    "classic": "Class-based facade orchestrating multiple subsystem class instances manually.",
+    "3.10": "Dataclass default dependencies and clean functional facade methods.",
+    "3.12": "Type-safe generic orchestrator PipelineFacade[In, Out] with PEP 695 type aliases.",
+}
 
 SCAFFOLD_TEMPLATE = '''"""
 Facade Scaffolding Template
@@ -141,7 +180,9 @@ PATTERN = Pattern(
         "与中介者（Mediator）：外观主要用于单向简化外部对子系统的调用；中介者抽取内部组件之间的双向复杂通信",
         "与单例（Singleton）：外观类通常只需要一个实例，因此常被实现为单例",
     ],
-    conceptual_code=CONCEPTUAL_CODE,
-    realworld_code=REALWORLD_CODE,
+    classic_code=CLASSIC_CODE,
+    python310_code=PYTHON310_CODE,
+    python312_code=PYTHON312_CODE,
+    matrix_notes=MATRIX_NOTES,
     scaffold_template=SCAFFOLD_TEMPLATE,
 )

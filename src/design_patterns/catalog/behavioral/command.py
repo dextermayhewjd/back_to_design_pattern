@@ -2,8 +2,8 @@
 
 from design_patterns.models import Category, Pattern
 
-CONCEPTUAL_CODE = '''"""
-Command - Conceptual Example
+CLASSIC_CODE = '''"""
+Command - Conceptual Example (Classic GoF)
 """
 from abc import ABC, abstractmethod
 
@@ -73,75 +73,112 @@ if __name__ == "__main__":
     invoker.do_something_important()
 '''
 
-REALWORLD_CODE = '''"""
-Command - Real-World Example: Text Editor with Undo/Redo Support
+PYTHON310_CODE = '''"""
+Command - Python 3.10+ Example: Dataclass Command with Callable & Undo Stack
 """
-from abc import ABC, abstractmethod
+from collections.abc import Callable
+from dataclasses import dataclass, field
 
 
-class Editor:
+@dataclass
+class Command:
+    execute: Callable[[], None]
+    undo: Callable[[], None]
+    description: str = ""
+
+
+class Canvas:
     def __init__(self) -> None:
-        self.text: str = ""
+        self.elements: list[str] = []
 
-    def append(self, text: str) -> None:
-        self.text += text
+    def draw(self, shape: str) -> Command:
+        def do() -> None:
+            self.elements.append(shape)
 
-    def delete_last(self, length: int) -> None:
-        self.text = self.text[:-length]
+        def undo() -> None:
+            if self.elements:
+                self.elements.pop()
 
-
-class EditorCommand(ABC):
-    @abstractmethod
-    def execute(self) -> None:
-        pass
-
-    @abstractmethod
-    def undo(self) -> None:
-        pass
+        return Command(execute=do, undo=undo, description=f"Draw {shape}")
 
 
-class InsertTextCommand(EditorCommand):
-    def __init__(self, editor: Editor, text: str) -> None:
-        self.editor = editor
-        self.text = text
+@dataclass
+class CommandManager:
+    _history: list[Command] = field(default_factory=list)
 
-    def execute(self) -> None:
-        self.editor.append(self.text)
+    def execute(self, cmd: Command) -> None:
+        cmd.execute()
+        self._history.append(cmd)
 
-    def undo(self) -> None:
-        self.editor.delete_last(len(self.text))
-
-
-class CommandHistory:
-    def __init__(self) -> None:
-        self._history: list[EditorCommand] = []
-
-    def push(self, command: EditorCommand) -> None:
-        self._history.append(command)
-
-    def pop(self) -> EditorCommand | None:
-        return self._history.pop() if self._history else None
+    def undo(self) -> str | None:
+        if not self._history:
+            return None
+        cmd = self._history.pop()
+        cmd.undo()
+        return cmd.description
 
 
 if __name__ == "__main__":
-    editor = Editor()
-    history = CommandHistory()
+    canvas = Canvas()
+    mgr = CommandManager()
 
-    cmd1 = InsertTextCommand(editor, "Hello ")
-    cmd1.execute()
-    history.push(cmd1)
+    mgr.execute(canvas.draw("Circle"))
+    mgr.execute(canvas.draw("Square"))
+    print(f"Canvas: {canvas.elements}")
 
-    cmd2 = InsertTextCommand(editor, "World!")
-    cmd2.execute()
-    history.push(cmd2)
-
-    print("Current text:", editor.text)
-
-    last_cmd = history.pop()
-    if last_cmd:
-        last_cmd.undo()
-    print("After undo:", editor.text)
+    undone = mgr.undo()
+    print(f"Undone: {undone}, Canvas now: {canvas.elements}")
 '''
+
+PYTHON312_CODE = '''"""
+Command - Python 3.12+ Example: PEP 695 Generic Command & typing.Self
+"""
+from collections.abc import Callable
+from dataclasses import dataclass
+
+
+@dataclass
+class Action[T]:
+    payload: T
+    forward: Callable[[T], None]
+    backward: Callable[[T], None]
+
+    def apply(self) -> None:
+        self.forward(self.payload)
+
+    def revert(self) -> None:
+        self.backward(self.payload)
+
+
+class TextBuffer:
+    def __init__(self) -> None:
+        self.content: list[str] = []
+
+    def make_append_action(self, text: str) -> Action[str]:
+        return Action(
+            payload=text,
+            forward=lambda t: self.content.append(t),
+            backward=lambda _: self.content.pop() if self.content else None,
+        )
+
+
+if __name__ == "__main__":
+    buf = TextBuffer()
+    act = buf.make_append_action("Hello Python 3.12")
+    act.apply()
+    print(f"Buffer: {buf.content}")
+    act.revert()
+    print(f"Buffer after revert: {buf.content}")
+'''
+
+CONCEPTUAL_CODE = CLASSIC_CODE
+REALWORLD_CODE = PYTHON310_CODE
+
+MATRIX_NOTES = {
+    "classic": "Single-method Command classes (Java in Python) implementing execute() and undo().",
+    "3.10": "Replaced Command classes with first-class Callables and lightweight dataclass Command closures.",
+    "3.12": "Type-safe generic command encapsulation Action[T] with PEP 695 type parameters.",
+}
 
 SCAFFOLD_TEMPLATE = '''"""
 Command Scaffolding Template
@@ -203,7 +240,9 @@ PATTERN = Pattern(
         "与策略（Strategy）：策略通常用来描述实现同一件事的不同算法；命令通常将一个特定行为封装为对象",
         "与责任链（Chain of Responsibility）：责任链的各个环节可以执行传入的命令",
     ],
-    conceptual_code=CONCEPTUAL_CODE,
-    realworld_code=REALWORLD_CODE,
+    classic_code=CLASSIC_CODE,
+    python310_code=PYTHON310_CODE,
+    python312_code=PYTHON312_CODE,
+    matrix_notes=MATRIX_NOTES,
     scaffold_template=SCAFFOLD_TEMPLATE,
 )

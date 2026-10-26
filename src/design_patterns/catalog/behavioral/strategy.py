@@ -2,8 +2,8 @@
 
 from design_patterns.models import Category, Pattern
 
-CONCEPTUAL_CODE = '''"""
-Strategy - Conceptual Example
+CLASSIC_CODE = '''"""
+Strategy - Conceptual Example (Classic GoF)
 """
 from abc import ABC, abstractmethod
 
@@ -53,49 +53,74 @@ if __name__ == "__main__":
     print(context.do_some_business_logic(data))
 '''
 
-REALWORLD_CODE = '''"""
-Strategy - Real-World Example: E-Commerce Shipping Cost Calculation
+PYTHON310_CODE = '''"""
+Strategy - Python 3.10+ Example: First-Class Callable Strategies
 """
-from abc import ABC, abstractmethod
+from collections.abc import Callable
 
 
-class ShippingStrategy(ABC):
-    @abstractmethod
-    def calculate_cost(self, weight_kg: float, distance_km: float) -> float:
-        pass
+# A Strategy in Python is simply a Callable
+ShippingStrategy = Callable[[float, float], float]
 
 
-class StandardShipping(ShippingStrategy):
-    def calculate_cost(self, weight_kg: float, distance_km: float) -> float:
-        return 5.0 + (weight_kg * 1.5) + (distance_km * 0.05)
+def standard_shipping(weight_kg: float, distance_km: float) -> float:
+    return 5.0 + (weight_kg * 1.5) + (distance_km * 0.05)
 
 
-class ExpressAirShipping(ShippingStrategy):
-    def calculate_cost(self, weight_kg: float, distance_km: float) -> float:
-        return 20.0 + (weight_kg * 4.0) + (distance_km * 0.15)
+def express_shipping(weight_kg: float, distance_km: float) -> float:
+    return 20.0 + (weight_kg * 4.0) + (distance_km * 0.15)
 
 
-class FreeEconomyShipping(ShippingStrategy):
-    def calculate_cost(self, weight_kg: float, distance_km: float) -> float:
-        return 0.0
+def free_economy_shipping(weight_kg: float, distance_km: float) -> float:
+    return 0.0
 
 
-class ShippingCostCalculator:
-    def __init__(self, strategy: ShippingStrategy) -> None:
-        self.strategy = strategy
-
-    def get_quote(self, weight_kg: float, distance_km: float) -> str:
-        cost = self.strategy.calculate_cost(weight_kg, distance_km)
-        return f"Shipping cost: ${cost:.2f} using {self.strategy.__class__.__name__}"
+def calculate_shipping(weight_kg: float, distance_km: float, strategy: ShippingStrategy) -> float:
+    return strategy(weight_kg, distance_km)
 
 
 if __name__ == "__main__":
-    calculator = ShippingCostCalculator(StandardShipping())
-    print(calculator.get_quote(weight_kg=2.5, distance_km=120))
+    cost1 = calculate_shipping(2.5, 120, standard_shipping)
+    print(f"Standard Shipping: ${cost1:.2f}")
 
-    calculator.strategy = ExpressAirShipping()
-    print(calculator.get_quote(weight_kg=2.5, distance_km=120))
+    cost2 = calculate_shipping(2.5, 120, express_shipping)
+    print(f"Express Shipping:  ${cost2:.2f}")
+
+    # Ad-hoc strategy via lambda
+    cost3 = calculate_shipping(2.5, 120, lambda w, d: w * 2.0)
+    print(f"Custom Flat Rate:  ${cost3:.2f}")
 '''
+
+PYTHON312_CODE = '''"""
+Strategy - Python 3.12+ Example: PEP 695 Generic Strategy
+"""
+from collections.abc import Callable
+
+type Strategy[T, R] = Callable[[T], R]
+
+
+class AlgorithmRunner[T, R]:
+    def __init__(self, strategy: Strategy[T, R]) -> None:
+        self.strategy = strategy
+
+    def run(self, data: T) -> R:
+        return self.strategy(data)
+
+
+if __name__ == "__main__":
+    runner = AlgorithmRunner[list[str], list[str]](strategy=lambda items: sorted(items, reverse=True))
+    result = runner.run(["apple", "banana", "cherry"])
+    print(f"Reversed sort: {result}")
+'''
+
+CONCEPTUAL_CODE = CLASSIC_CODE
+REALWORLD_CODE = PYTHON310_CODE
+
+MATRIX_NOTES = {
+    "classic": "Heavy Strategy ABC with ConcreteStrategy subclasses wrapping a single algorithm method.",
+    "3.10": "Replaced classes with first-class functions (Callable) passed directly as arguments.",
+    "3.12": "Type-safe generic strategy parameterized via PEP 695 type Strategy[T, R] = Callable[[T], R].",
+}
 
 SCAFFOLD_TEMPLATE = '''"""
 Strategy Scaffolding Template
@@ -151,7 +176,9 @@ PATTERN = Pattern(
         "与命令（Command）：命令将特定操作封装为对象；策略提供解决相同问题的不同算法互换",
         "与模板方法（Template Method）：模板方法基于继承来改变算法的部分步骤；策略基于组合来改变整个算法",
     ],
-    conceptual_code=CONCEPTUAL_CODE,
-    realworld_code=REALWORLD_CODE,
+    classic_code=CLASSIC_CODE,
+    python310_code=PYTHON310_CODE,
+    python312_code=PYTHON312_CODE,
+    matrix_notes=MATRIX_NOTES,
     scaffold_template=SCAFFOLD_TEMPLATE,
 )
