@@ -119,11 +119,15 @@ Design Patterns represent battle-tested solutions to recurring architectural ten
 Agents should leverage static AST analysis to inspect codebases before proposing changes:
 
 - Run `pat analyze <path>` (or `bin/pat analyze <path>`) for static AST detection of design patterns and Java-in-Python code smells:
-  - **Detected Design Patterns**: Static identification of Visitor, Singleton, Composite, Decorator, Proxy, Observer, Template Method, and Strategy structures in the inspected code.
-  - **Single-Method Class ("Java in Python")**: Flagged when a class only contains 1 public method, suggesting refactoring to a plain function or Callable strategy.
-  - **Parameter Explosion**: Flagged when a function or method takes more than 5 parameters, suggesting a `@dataclass(kw_only=True)` or Builder.
-  - **Complex Branching**: Flagged when a function contains more than 3 `if`/`elif` branches, suggesting `match-case` or Strategy dispatch.
-  - **Manual Iterator**: Flagged when a class implements manual `__iter__` and `__next__`, suggesting replacement with a generator function using `yield`.
+  - **Detected Design Patterns**: Static AST detection of all 22 classic Gang of Four (GoF) design patterns:
+    - *Creational (5)*: Factory Method, Abstract Factory, Builder, Prototype, Singleton
+    - *Structural (7)*: Adapter, Bridge, Composite, Decorator, Facade, Flyweight, Proxy
+    - *Behavioral (10)*: Chain of Responsibility, Command, Iterator, Mediator, Memento, Observer, State, Strategy, Template Method, Visitor
+  - **Code Smells & Anti-Patterns (4)**:
+    - **Single-Method Class ("Java in Python")**: Flagged when a class only contains 1 public method, suggesting refactoring to a plain function or Callable strategy.
+    - **Parameter Explosion**: Flagged when a function or method takes more than 5 parameters, suggesting a `@dataclass(kw_only=True)` or Builder.
+    - **Complex Branching**: Flagged when a function contains more than 3 `if`/`elif` branches, suggesting `match-case` or Strategy dispatch.
+    - **Manual Iterator**: Flagged when a class implements manual `__iter__` and `__next__`, suggesting replacement with a generator function using `yield`.
   - **Evolution Opportunities**: Automatic recommendations on whether code can be simplified using Python 3.10+ or 3.12+ features.
 
 ---

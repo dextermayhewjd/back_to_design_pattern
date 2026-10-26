@@ -477,6 +477,615 @@ class PaymentContext:
     assert matching[0].category == "behavioral"
 
 
+def test_detect_factory_method_pattern():
+    source = """
+from abc import ABC, abstractmethod
+
+class Dialog(ABC):
+    @abstractmethod
+    def create_button(self):
+        pass
+
+    def render(self):
+        btn = self.create_button()
+        return btn.render()
+"""
+    analyzer = CodebaseAnalyzer()
+    patterns, _ = analyzer.analyze_source(source, "dialog.py")
+    matching = [p for p in patterns if p.pattern_id == "factory_method"]
+    assert len(matching) == 1
+    assert matching[0].category == "creational"
+    assert matching[0].confidence == "medium"
+    assert "factory method 'create_button'" in matching[0].evidence
+
+
+def test_detect_abstract_factory_pattern():
+    source = """
+from abc import ABC, abstractmethod
+
+class GUIFactory(ABC):
+    @abstractmethod
+    def create_button(self):
+        pass
+
+    @abstractmethod
+    def create_checkbox(self):
+        pass
+"""
+    analyzer = CodebaseAnalyzer()
+    patterns, _ = analyzer.analyze_source(source, "gui.py")
+    matching = [p for p in patterns if p.pattern_id == "abstract_factory"]
+    assert len(matching) == 1
+    assert matching[0].category == "creational"
+    assert matching[0].confidence == "medium"
+    assert "multiple factory methods" in matching[0].evidence
+
+
+def test_detect_builder_pattern():
+    source = """
+class QueryBuilder:
+    def __init__(self):
+        self._query = []
+
+    def select(self, fields):
+        self._query.append(f"SELECT {fields}")
+        return self
+
+    def where(self, condition):
+        self._query.append(f"WHERE {condition}")
+        return self
+
+    def build(self):
+        return " ".join(self._query)
+"""
+    analyzer = CodebaseAnalyzer()
+    patterns, _ = analyzer.analyze_source(source, "query.py")
+    matching = [p for p in patterns if p.pattern_id == "builder"]
+    assert len(matching) == 1
+    assert matching[0].category == "creational"
+    assert matching[0].confidence == "medium"
+    assert "build() method" in matching[0].evidence
+
+
+def test_detect_prototype_pattern():
+    source = """
+class CellState:
+    def __init__(self, val: int):
+        self.val = val
+
+    def clone(self):
+        return CellState(self.val)
+"""
+    analyzer = CodebaseAnalyzer()
+    patterns, _ = analyzer.analyze_source(source, "cell.py")
+    matching = [p for p in patterns if p.pattern_id == "prototype"]
+    assert len(matching) == 1
+    assert matching[0].category == "creational"
+    assert matching[0].confidence == "high"
+    assert "clone() method" in matching[0].evidence
+
+
+def test_detect_adapter_pattern():
+    source = """
+class SquarePegAdapter:
+    def __init__(self, adaptee):
+        self._adaptee = adaptee
+
+    def get_radius(self):
+        return self._adaptee.get_width() * 0.707
+"""
+    analyzer = CodebaseAnalyzer()
+    patterns, _ = analyzer.analyze_source(source, "adapter.py")
+    matching = [p for p in patterns if p.pattern_id == "adapter"]
+    assert len(matching) == 1
+    assert matching[0].category == "structural"
+    assert matching[0].confidence == "medium"
+    assert "adaptee" in matching[0].evidence
+
+
+def test_detect_bridge_pattern():
+    source = """
+class RemoteControl:
+    def __init__(self, device):
+        self._device = device
+
+    def toggle_power(self):
+        self._device.set_power(True)
+"""
+    analyzer = CodebaseAnalyzer()
+    patterns, _ = analyzer.analyze_source(source, "remote.py")
+    matching = [p for p in patterns if p.pattern_id == "bridge"]
+    assert len(matching) == 1
+    assert matching[0].category == "structural"
+    assert matching[0].confidence == "medium"
+    assert "implementor" in matching[0].evidence
+
+
+def test_detect_facade_pattern():
+    source = """
+class MultimediaFacade:
+    def __init__(self):
+        self._audio = AudioCodec()
+        self._video = VideoCodec()
+
+    def process_media(self, file_path: str):
+        a = self._audio.decode(file_path)
+        v = self._video.render(file_path)
+        return a + v
+"""
+    analyzer = CodebaseAnalyzer()
+    patterns, _ = analyzer.analyze_source(source, "media.py")
+    matching = [p for p in patterns if p.pattern_id == "facade"]
+    assert len(matching) == 1
+    assert matching[0].category == "structural"
+    assert matching[0].confidence == "medium"
+    assert "coordinating multiple subsystems" in matching[0].evidence
+
+
+def test_detect_flyweight_pattern():
+    source = """
+class ParticleFactory:
+    _pool = {}
+
+    def get_particle(self, color: str):
+        if color not in self._pool:
+            self._pool[color] = Particle(color)
+        return self._pool[color]
+"""
+    analyzer = CodebaseAnalyzer()
+    patterns, _ = analyzer.analyze_source(source, "particle.py")
+    matching = [p for p in patterns if p.pattern_id == "flyweight"]
+    assert len(matching) == 1
+    assert matching[0].category == "structural"
+    assert matching[0].confidence == "high"
+    assert "Flyweight instances" in matching[0].evidence
+
+
+def test_detect_chain_of_responsibility_pattern():
+    source = """
+class BaseFilter:
+    def __init__(self):
+        self._next_handler = None
+
+    def set_next(self, handler):
+        self._next_handler = handler
+        return handler
+
+    def handle(self, request):
+        if self._next_handler:
+            return self._next_handler.handle(request)
+        return None
+"""
+    analyzer = CodebaseAnalyzer()
+    patterns, _ = analyzer.analyze_source(source, "chain.py")
+    matching = [p for p in patterns if p.pattern_id == "chain_of_responsibility"]
+    assert len(matching) == 1
+    assert matching[0].category == "behavioral"
+    assert matching[0].confidence == "high"
+    assert "sequential handler passing" in matching[0].evidence
+
+
+def test_detect_command_pattern():
+    source = """
+class CopyCommand:
+    def __init__(self, editor):
+        self.editor = editor
+        self._backup = ""
+
+    def execute(self):
+        self._backup = self.editor.get_selection()
+
+    def undo(self):
+        self.editor.set_selection(self._backup)
+"""
+    analyzer = CodebaseAnalyzer()
+    patterns, _ = analyzer.analyze_source(source, "command.py")
+    matching = [p for p in patterns if p.pattern_id == "command"]
+    assert len(matching) == 1
+    assert matching[0].category == "behavioral"
+    assert matching[0].confidence == "high"
+    assert "execute() and undo()" in matching[0].evidence
+
+
+def test_detect_iterator_pattern():
+    source = """
+class RangeIterator:
+    def __init__(self, start: int, stop: int):
+        self.curr = start
+        self.stop = stop
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        if self.curr >= self.stop:
+            raise StopIteration
+        val = self.curr
+        self.curr += 1
+        return val
+"""
+    analyzer = CodebaseAnalyzer()
+    patterns, _ = analyzer.analyze_source(source, "range_iter.py")
+    matching = [p for p in patterns if p.pattern_id == "iterator"]
+    assert len(matching) == 1
+    assert matching[0].category == "behavioral"
+    assert matching[0].confidence == "high"
+    assert "iterator protocol" in matching[0].evidence
+
+
+def test_detect_mediator_pattern():
+    source = """
+class AuthenticationMediator:
+    def notify(self, sender, event):
+        if event == "login":
+            pass
+"""
+    analyzer = CodebaseAnalyzer()
+    patterns, _ = analyzer.analyze_source(source, "auth_med.py")
+    matching = [p for p in patterns if p.pattern_id == "mediator"]
+    assert len(matching) == 1
+    assert matching[0].category == "behavioral"
+    assert matching[0].confidence == "high"
+    assert "Mediator pattern" in matching[0].evidence
+
+
+def test_detect_memento_pattern():
+    source = """
+class DocumentOriginator:
+    def __init__(self, text: str):
+        self._text = text
+
+    def save(self):
+        return DocumentSnapshot(self._text)
+
+    def restore(self, snapshot):
+        self._text = snapshot.get_text()
+"""
+    analyzer = CodebaseAnalyzer()
+    patterns, _ = analyzer.analyze_source(source, "doc.py")
+    matching = [p for p in patterns if p.pattern_id == "memento"]
+    assert len(matching) == 1
+    assert matching[0].category == "behavioral"
+    assert matching[0].confidence == "high"
+    assert "Memento pattern" in matching[0].evidence
+
+
+def test_detect_state_pattern():
+    source = """
+class DocumentContext:
+    def __init__(self, initial_state):
+        self._state = initial_state
+
+    def transition_to(self, state):
+        self._state = state
+
+    def publish(self):
+        self._state.render(self)
+"""
+    analyzer = CodebaseAnalyzer()
+    patterns, _ = analyzer.analyze_source(source, "state.py")
+    matching = [p for p in patterns if p.pattern_id == "state"]
+    assert len(matching) == 1
+    assert matching[0].category == "behavioral"
+    assert matching[0].confidence == "medium"
+    assert "State pattern" in matching[0].evidence
+
+
+# Parameterized test for all 22 GoF patterns
+ALL_22_PATTERNS_SAMPLES = [
+    # Creational (5)
+    (
+        "factory_method",
+        """
+from abc import ABC, abstractmethod
+
+class Dialog(ABC):
+    @abstractmethod
+    def factory_method(self):
+        pass
+
+    def render(self):
+        btn = self.factory_method()
+        return btn.draw()
+""",
+    ),
+    (
+        "abstract_factory",
+        """
+from abc import ABC, abstractmethod
+
+class GUIFactory(ABC):
+    @abstractmethod
+    def create_button(self):
+        pass
+
+    @abstractmethod
+    def create_checkbox(self):
+        pass
+""",
+    ),
+    (
+        "builder",
+        """
+class CarBuilder:
+    def __init__(self):
+        self.parts = []
+
+    def set_seats(self, count):
+        self.parts.append(f"seats:{count}")
+        return self
+
+    def build(self):
+        return self.parts
+""",
+    ),
+    (
+        "prototype",
+        """
+class GraphicShape:
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
+
+    def clone(self):
+        return GraphicShape(self.x, self.y)
+""",
+    ),
+    (
+        "singleton",
+        """
+class Registry:
+    _instance = None
+
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+        return cls._instance
+""",
+    ),
+    # Structural (7)
+    (
+        "adapter",
+        """
+class PaymentGatewayAdapter:
+    def __init__(self, adaptee):
+        self._adaptee = adaptee
+
+    def pay(self, amount):
+        return self._adaptee.charge(amount)
+""",
+    ),
+    (
+        "bridge",
+        """
+class ViewAbstraction:
+    def __init__(self, impl):
+        self._impl = impl
+
+    def render(self):
+        return self._impl.draw()
+""",
+    ),
+    (
+        "composite",
+        """
+class FolderComposite:
+    def __init__(self):
+        self.children = []
+
+    def add(self, item):
+        self.children.append(item)
+
+    def remove(self, item):
+        self.children.remove(item)
+""",
+    ),
+    (
+        "decorator",
+        """
+class EncryptionDecorator:
+    def __init__(self, wrapped):
+        self._wrapped = wrapped
+
+    def write(self, data):
+        return self._wrapped.write(data)
+""",
+    ),
+    (
+        "facade",
+        """
+class CompilerFacade:
+    def __init__(self):
+        self._lexer = Lexer()
+        self._parser = Parser()
+
+    def compile(self, code):
+        tokens = self._lexer.lex(code)
+        ast = self._parser.parse(tokens)
+        return ast
+""",
+    ),
+    (
+        "flyweight",
+        """
+class GlyphFactory:
+    _pool = {}
+
+    def get_glyph(self, char):
+        if char not in self._pool:
+            self._pool[char] = Glyph(char)
+        return self._pool[char]
+""",
+    ),
+    (
+        "proxy",
+        """
+class DatabaseProxy:
+    def __init__(self, real_subject):
+        self._real_subject = real_subject
+
+    def query(self, sql):
+        return self._real_subject.query(sql)
+""",
+    ),
+    # Behavioral (10)
+    (
+        "chain_of_responsibility",
+        """
+class MiddlewareHandler:
+    def __init__(self):
+        self._next_handler = None
+
+    def set_next(self, handler):
+        self._next_handler = handler
+        return handler
+
+    def handle(self, request):
+        if self._next_handler:
+            return self._next_handler.handle(request)
+        return None
+""",
+    ),
+    (
+        "command",
+        """
+class MoveCommand:
+    def __init__(self, entity, dx, dy):
+        self.entity = entity
+        self.dx = dx
+        self.dy = dy
+
+    def execute(self):
+        self.entity.move(self.dx, self.dy)
+
+    def undo(self):
+        self.entity.move(-self.dx, -self.dy)
+""",
+    ),
+    (
+        "iterator",
+        """
+class SequenceIterator:
+    def __init__(self, items):
+        self.items = items
+        self.idx = 0
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        if self.idx >= len(self.items):
+            raise StopIteration
+        val = self.items[self.idx]
+        self.idx += 1
+        return val
+""",
+    ),
+    (
+        "mediator",
+        """
+class ChatMediator:
+    def notify(self, sender, event):
+        if event == "message":
+            pass
+""",
+    ),
+    (
+        "memento",
+        """
+class CanvasOriginator:
+    def __init__(self, state):
+        self._state = state
+
+    def save(self):
+        return CanvasMemento(self._state)
+
+    def restore(self, memento):
+        self._state = memento.get_state()
+""",
+    ),
+    (
+        "observer",
+        """
+class StockTicker:
+    def __init__(self):
+        self.observers = []
+
+    def subscribe(self, observer):
+        self.observers.append(observer)
+
+    def notify(self, price):
+        for o in self.observers:
+            o(price)
+""",
+    ),
+    (
+        "state",
+        """
+class OrderStateContext:
+    def __init__(self, initial_state):
+        self._state = initial_state
+
+    def transition_to(self, state):
+        self._state = state
+
+    def process(self):
+        self._state.handle_process(self)
+""",
+    ),
+    (
+        "strategy",
+        """
+from typing import Callable
+
+class PricingContext:
+    def __init__(self, strategy: Callable[[float], float]):
+        self._strategy = strategy
+
+    def get_price(self, raw):
+        return self._strategy(raw)
+""",
+    ),
+    (
+        "template_method",
+        """
+from abc import ABC, abstractmethod
+
+class Workflow(ABC):
+    def run(self):
+        self.step_a()
+        self.step_b()
+
+    @abstractmethod
+    def step_a(self):
+        pass
+
+    @abstractmethod
+    def step_b(self):
+        pass
+""",
+    ),
+    (
+        "visitor",
+        """
+class SyntaxNode:
+    def accept(self, visitor):
+        return visitor.visit_syntax(self)
+""",
+    ),
+]
+
+
+@pytest.mark.parametrize("pattern_id,sample_code", ALL_22_PATTERNS_SAMPLES)
+def test_detect_all_22_patterns_parameterized(pattern_id, sample_code):
+    analyzer = CodebaseAnalyzer()
+    patterns, _ = analyzer.analyze_source(sample_code, f"{pattern_id}.py")
+    matching = [p for p in patterns if p.pattern_id == pattern_id]
+    assert len(matching) >= 1, f"Pattern '{pattern_id}' was not detected in sample code!"
+    assert matching[0].pattern_id == pattern_id
+    assert matching[0].confidence in ("high", "medium")
+
+
 # =====================================================================
 # Path / Directory Scanning Tests
 # =====================================================================

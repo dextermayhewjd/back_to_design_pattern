@@ -71,8 +71,11 @@ For machine-readable JSON output suitable for programmatic agent parsing:
 bin/pat analyze src/ --json
 ```
 Detects:
-- **Detected Design Patterns**: Visitor, Singleton, Composite, Decorator, Proxy, Observer, Template Method, and Strategy.
-- **Detected Code Smells**:
+- **Detected Design Patterns (All 22 GoF Patterns)**:
+  - *Creational*: Factory Method, Abstract Factory, Builder, Prototype, Singleton
+  - *Structural*: Adapter, Bridge, Composite, Decorator, Facade, Flyweight, Proxy
+  - *Behavioral*: Chain of Responsibility, Command, Iterator, Mediator, Memento, Observer, State, Strategy, Template Method, Visitor
+- **Detected Code Smells & Anti-Patterns (4)**:
   - Single-Method Class ("Java in Python", recommend plain function or Callable).
   - Parameter Explosion (>5 parameters, recommend `@dataclass(kw_only=True)` or Builder).
   - Complex Branching (>3 `if`/`elif` branches, recommend `match-case` or Strategy).

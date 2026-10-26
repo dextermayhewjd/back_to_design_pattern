@@ -82,14 +82,32 @@ class _ASTAnalyzerVisitor(ast.NodeVisitor):
         self._check_single_method_class(node, methods, public_methods, method_names)
         self._check_manual_iterator(node, method_names)
 
-        # Check for patterns
-        self._check_visitor_pattern(node, methods)
+        # Check for patterns - Creational
+        self._check_factory_method_pattern(node, methods, method_names)
+        self._check_abstract_factory_pattern(node, methods, method_names)
+        self._check_builder_pattern(node, methods, method_names)
+        self._check_prototype_pattern(node, methods, method_names)
         self._check_singleton_pattern(node, methods)
+
+        # Check for patterns - Structural
+        self._check_adapter_pattern(node, methods)
+        self._check_bridge_pattern(node, methods)
         self._check_composite_pattern(node, methods, method_names)
         self._check_decorator_proxy_pattern(node, methods)
+        self._check_facade_pattern(node, methods)
+        self._check_flyweight_pattern(node, methods, method_names)
+
+        # Check for patterns - Behavioral
+        self._check_chain_of_responsibility_pattern(node, methods, method_names)
+        self._check_command_pattern(node, methods, method_names)
+        self._check_iterator_pattern(node, method_names)
+        self._check_mediator_pattern(node, methods, method_names)
+        self._check_memento_pattern(node, method_names)
         self._check_observer_pattern(node, method_names)
-        self._check_template_method_pattern(node, methods)
+        self._check_state_pattern(node, methods, method_names)
         self._check_strategy_pattern(node, methods)
+        self._check_template_method_pattern(node, methods)
+        self._check_visitor_pattern(node, methods)
 
         # Continue traversing children
         self.generic_visit(node)
@@ -623,6 +641,703 @@ class _ASTAnalyzerVisitor(ast.NodeVisitor):
                     line_number=node.lineno,
                     evidence=f"Class '{node.name}' uses Strategy pattern accepting interchangeable Callable or algorithm",
                     confidence="high",
+                )
+            )
+
+    # ------------------------------------------------------------------
+    # Additional GoF Pattern Checkers
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _is_abstract_method(m: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
+        for dec in m.decorator_list:
+            if (isinstance(dec, ast.Name) and dec.id == "abstractmethod") or (
+                isinstance(dec, ast.Attribute) and dec.attr == "abstractmethod"
+            ):
+                return True
+        if len(m.body) == 1 and isinstance(m.body[0], ast.Raise):
+            exc = m.body[0].exc
+            if isinstance(exc, ast.Name) and exc.id == "NotImplementedError":
+                return True
+            elif (
+                isinstance(exc, ast.Call)
+                and isinstance(exc.func, ast.Name)
+                and exc.func.id == "NotImplementedError"
+            ):
+                return True
+        return False
+
+    @staticmethod
+    def _method_returns_self(m: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
+        for sub in ast.walk(m):
+            if (
+                isinstance(sub, ast.Return)
+                and isinstance(sub.value, ast.Name)
+                and sub.value.id == "self"
+            ):
+                return True
+        return False
+
+    def _check_factory_method_pattern(
+        self,
+        node: ast.ClassDef,
+        methods: list[ast.FunctionDef | ast.AsyncFunctionDef],
+        method_names: set[str],
+    ) -> None:
+        creation_methods = [
+            m
+            for m in methods
+            if (
+                m.name == "factory_method"
+                or (
+                    m.name.startswith(("create_", "make_"))
+                    and m.name not in ("create_memento",)
+                )
+            )
+        ]
+        if not creation_methods:
+            return
+
+        abstract_creations = [m for m in creation_methods if self._is_abstract_method(m)]
+        # If class has 2+ abstract creation methods, it is handled as Abstract Factory
+        if len(abstract_creations) >= 2:
+            return
+
+        has_explicit = "factory_method" in method_names
+        has_abstract_creation = bool(abstract_creations)
+        name_lower = node.name.lower()
+        inherits_creator = any(
+            (isinstance(b, ast.Name) and ("creator" in b.id.lower() or "factory" in b.id.lower()))
+            or (isinstance(b, ast.Attribute) and ("creator" in b.attr.lower() or "factory" in b.attr.lower()))
+            for b in node.bases
+        )
+        is_creator_name = "creator" in name_lower or "factory" in name_lower
+
+        if has_explicit or has_abstract_creation or inherits_creator or (is_creator_name and len(creation_methods) == 1):
+            method_name = creation_methods[0].name
+            self.patterns.append(
+                PatternMatch(
+                    pattern_id="factory_method",
+                    pattern_name="Factory Method",
+                    category="creational",
+                    file_path=self.file_path,
+                    line_number=node.lineno,
+                    evidence=f"Class '{node.name}' defines factory method '{method_name}' for deferred object creation",
+                    confidence="medium",
+                )
+            )
+
+    def _check_abstract_factory_pattern(
+        self,
+        node: ast.ClassDef,
+        methods: list[ast.FunctionDef | ast.AsyncFunctionDef],
+        method_names: set[str],
+    ) -> None:
+        creation_methods = [
+            m
+            for m in methods
+            if (
+                m.name.startswith(("create_", "make_", "produce_"))
+                and m.name not in ("create_memento",)
+            )
+        ]
+        abstract_creation = [m for m in creation_methods if self._is_abstract_method(m)]
+        inherits_abstract_factory = any(
+            (isinstance(b, ast.Name) and "factory" in b.id.lower() and "abstract" in b.id.lower())
+            or (isinstance(b, ast.Attribute) and "factory" in b.attr.lower() and "abstract" in b.attr.lower())
+            for b in node.bases
+        )
+        name_lower = node.name.lower()
+        is_factory_name = "factory" in name_lower and ("abstract" in name_lower or len(creation_methods) >= 2)
+
+        if len(abstract_creation) >= 2 or (inherits_abstract_factory and len(creation_methods) >= 2) or (is_factory_name and len(creation_methods) >= 2):
+            self.patterns.append(
+                PatternMatch(
+                    pattern_id="abstract_factory",
+                    pattern_name="Abstract Factory",
+                    category="creational",
+                    file_path=self.file_path,
+                    line_number=node.lineno,
+                    evidence=f"Class '{node.name}' declares multiple factory methods for families of related objects",
+                    confidence="medium",
+                )
+            )
+
+    def _check_builder_pattern(
+        self,
+        node: ast.ClassDef,
+        methods: list[ast.FunctionDef | ast.AsyncFunctionDef],
+        method_names: set[str],
+    ) -> None:
+        has_build = bool(method_names & {"build", "get_result", "get_product"})
+        has_chaining = any(self._method_returns_self(m) for m in methods)
+        has_step_methods = any(
+            m.name.startswith(("set_", "with_", "add_", "produce_")) for m in methods
+        )
+        name_lower = node.name.lower()
+        is_builder_name = "builder" in name_lower
+
+        has_construct = bool(method_names & {"construct", "build_minimal", "build_full"})
+        takes_builder = False
+        init_methods = [m for m in methods if m.name in ("__init__", "construct")]
+        for im in init_methods:
+            for arg in im.args.args + im.args.kwonlyargs:
+                if "builder" in arg.arg.lower():
+                    takes_builder = True
+                    break
+
+        is_director = (has_construct and takes_builder) or ("director" in name_lower and (has_construct or has_build))
+
+        if (has_build and (has_chaining or has_step_methods or is_builder_name)) or is_director:
+            self.patterns.append(
+                PatternMatch(
+                    pattern_id="builder",
+                    pattern_name="Builder",
+                    category="creational",
+                    file_path=self.file_path,
+                    line_number=node.lineno,
+                    evidence=f"Class '{node.name}' implements Builder pattern with step-by-step construction and build() method",
+                    confidence="medium",
+                )
+            )
+
+    def _check_prototype_pattern(
+        self,
+        node: ast.ClassDef,
+        methods: list[ast.FunctionDef | ast.AsyncFunctionDef],
+        method_names: set[str],
+    ) -> None:
+        has_clone = "clone" in method_names
+        has_copy_dunder = bool(method_names & {"__copy__", "__deepcopy__"})
+        has_copy_call = False
+        for m in methods:
+            for sub in ast.walk(m):
+                if isinstance(sub, ast.Call):
+                    if isinstance(sub.func, ast.Attribute) and sub.func.attr in ("copy", "deepcopy"):
+                        has_copy_call = True
+                        break
+            if has_copy_call:
+                break
+
+        name_lower = node.name.lower()
+        if has_clone or has_copy_dunder or (has_copy_call and ("prototype" in name_lower or "component" in name_lower or "record" in name_lower)):
+            evidence = (
+                f"Class '{node.name}' implements clone() method for prototype replication"
+                if has_clone
+                else f"Class '{node.name}' implements prototype replication (__copy__/__deepcopy__ or copy module)"
+            )
+            self.patterns.append(
+                PatternMatch(
+                    pattern_id="prototype",
+                    pattern_name="Prototype",
+                    category="creational",
+                    file_path=self.file_path,
+                    line_number=node.lineno,
+                    evidence=evidence,
+                    confidence="high",
+                )
+            )
+
+    def _check_adapter_pattern(
+        self,
+        node: ast.ClassDef,
+        methods: list[ast.FunctionDef | ast.AsyncFunctionDef],
+    ) -> None:
+        adaptee_attrs: set[str] = set()
+        init_methods = [m for m in methods if m.name == "__init__"]
+        if init_methods:
+            im = init_methods[0]
+            for sub in ast.walk(im):
+                if isinstance(sub, ast.Assign):
+                    for target in sub.targets:
+                        if (
+                            isinstance(target, ast.Attribute)
+                            and isinstance(target.value, ast.Name)
+                            and target.value.id == "self"
+                        ):
+                            attr_lower = target.attr.lower()
+                            if any(
+                                a in attr_lower
+                                for a in ("adaptee", "legacy", "old_", "external", "third_party", "backend")
+                            ):
+                                adaptee_attrs.add(target.attr)
+            for arg in im.args.args + im.args.kwonlyargs:
+                if any(a in arg.arg.lower() for a in ("adaptee", "legacy")):
+                    adaptee_attrs.add(arg.arg)
+
+        delegates = False
+        if adaptee_attrs:
+            for m in methods:
+                if m.name.startswith("__"):
+                    continue
+                for sub in ast.walk(m):
+                    if (
+                        isinstance(sub, ast.Attribute)
+                        and isinstance(sub.value, ast.Attribute)
+                        and isinstance(sub.value.value, ast.Name)
+                        and sub.value.value.id == "self"
+                        and (
+                            sub.value.attr in adaptee_attrs
+                            or any(a in sub.value.attr.lower() for a in ("adaptee", "legacy"))
+                        )
+                    ):
+                        delegates = True
+                        break
+                if delegates:
+                    break
+
+        name_lower = node.name.lower()
+        is_adapter_name = "adapter" in name_lower
+
+        if (is_adapter_name and (adaptee_attrs or delegates or len(methods) >= 2)) or (adaptee_attrs and delegates):
+            self.patterns.append(
+                PatternMatch(
+                    pattern_id="adapter",
+                    pattern_name="Adapter",
+                    category="structural",
+                    file_path=self.file_path,
+                    line_number=node.lineno,
+                    evidence=f"Class '{node.name}' adapts incompatible interface of adaptee to target interface",
+                    confidence="medium",
+                )
+            )
+
+    def _check_bridge_pattern(
+        self,
+        node: ast.ClassDef,
+        methods: list[ast.FunctionDef | ast.AsyncFunctionDef],
+    ) -> None:
+        impl_attrs: set[str] = set()
+        init_methods = [m for m in methods if m.name == "__init__"]
+        if init_methods:
+            im = init_methods[0]
+            for sub in ast.walk(im):
+                if isinstance(sub, ast.Assign):
+                    for target in sub.targets:
+                        if (
+                            isinstance(target, ast.Attribute)
+                            and isinstance(target.value, ast.Name)
+                            and target.value.id == "self"
+                        ):
+                            attr_lower = target.attr.lower()
+                            if any(
+                                k in attr_lower
+                                for k in ("impl", "implementor", "implementation", "device", "renderer", "platform")
+                            ):
+                                impl_attrs.add(target.attr)
+            for arg in im.args.args + im.args.kwonlyargs:
+                if any(k in arg.arg.lower() for k in ("impl", "implementor", "implementation", "device")):
+                    impl_attrs.add(arg.arg)
+
+        delegates = False
+        if impl_attrs:
+            for m in methods:
+                if m.name.startswith("__"):
+                    continue
+                for sub in ast.walk(m):
+                    if (
+                        isinstance(sub, ast.Attribute)
+                        and isinstance(sub.value, ast.Attribute)
+                        and isinstance(sub.value.value, ast.Name)
+                        and sub.value.value.id == "self"
+                        and (
+                            sub.value.attr in impl_attrs
+                            or any(k in sub.value.attr.lower() for k in ("impl", "device"))
+                        )
+                    ):
+                        delegates = True
+                        break
+                if delegates:
+                    break
+
+        name_lower = node.name.lower()
+        is_bridge_name = "bridge" in name_lower or "abstraction" in name_lower
+
+        if (impl_attrs and delegates) or (is_bridge_name and (impl_attrs or delegates)):
+            self.patterns.append(
+                PatternMatch(
+                    pattern_id="bridge",
+                    pattern_name="Bridge",
+                    category="structural",
+                    file_path=self.file_path,
+                    line_number=node.lineno,
+                    evidence=f"Class '{node.name}' decouples abstraction from implementation via delegated implementor",
+                    confidence="medium",
+                )
+            )
+
+    def _check_facade_pattern(
+        self,
+        node: ast.ClassDef,
+        methods: list[ast.FunctionDef | ast.AsyncFunctionDef],
+    ) -> None:
+        name_lower = node.name.lower()
+        is_facade_name = "facade" in name_lower
+
+        subsystem_attrs: set[str] = set()
+        init_methods = [m for m in methods if m.name == "__init__"]
+        if init_methods:
+            im = init_methods[0]
+            for sub in ast.walk(im):
+                if isinstance(sub, ast.Assign):
+                    for target in sub.targets:
+                        if (
+                            isinstance(target, ast.Attribute)
+                            and isinstance(target.value, ast.Name)
+                            and target.value.id == "self"
+                        ):
+                            attr_name = target.attr
+                            if "subsystem" in attr_name.lower() or "service" in attr_name.lower():
+                                subsystem_attrs.add(attr_name)
+                            elif isinstance(sub.value, ast.Call) and not attr_name.startswith("__"):
+                                subsystem_attrs.add(attr_name)
+                            elif isinstance(sub.value, ast.BoolOp):
+                                subsystem_attrs.add(attr_name)
+            for arg in im.args.args + im.args.kwonlyargs:
+                if "subsystem" in arg.arg.lower() or "service" in arg.arg.lower():
+                    subsystem_attrs.add(arg.arg)
+
+        used_subsystems: set[str] = set()
+        if len(subsystem_attrs) >= 2:
+            for m in methods:
+                if m.name.startswith("__"):
+                    continue
+                for sub in ast.walk(m):
+                    if (
+                        isinstance(sub, ast.Call)
+                        and isinstance(sub.func, ast.Attribute)
+                        and isinstance(sub.func.value, ast.Attribute)
+                        and isinstance(sub.func.value.value, ast.Name)
+                        and sub.func.value.value.id == "self"
+                        and sub.func.value.attr in subsystem_attrs
+                    ):
+                        used_subsystems.add(sub.func.value.attr)
+
+        orchestrates = len(used_subsystems) >= 2
+
+        if is_facade_name or orchestrates:
+            self.patterns.append(
+                PatternMatch(
+                    pattern_id="facade",
+                    pattern_name="Facade",
+                    category="structural",
+                    file_path=self.file_path,
+                    line_number=node.lineno,
+                    evidence=f"Class '{node.name}' provides a unified facade interface coordinating multiple subsystems",
+                    confidence="medium",
+                )
+            )
+
+    def _check_flyweight_pattern(
+        self,
+        node: ast.ClassDef,
+        methods: list[ast.FunctionDef | ast.AsyncFunctionDef],
+        method_names: set[str],
+    ) -> None:
+        has_pool_attr = False
+        name_lower = node.name.lower()
+        is_flyweight_name = "flyweight" in name_lower
+
+        for stmt in node.body:
+            if isinstance(stmt, ast.Assign):
+                for t in stmt.targets:
+                    if isinstance(t, ast.Name) and any(
+                        k in t.id.lower() for k in ("_pool", "pool", "_cache", "_flyweights", "flyweights")
+                    ):
+                        has_pool_attr = True
+            elif isinstance(stmt, ast.AnnAssign):
+                if isinstance(stmt.target, ast.Name) and any(
+                    k in stmt.target.id.lower() for k in ("_pool", "pool", "_cache", "_flyweights", "flyweights")
+                ):
+                    has_pool_attr = True
+
+        init_methods = [m for m in methods if m.name in ("__init__", "__new__")]
+        if init_methods:
+            for sub in ast.walk(init_methods[0]):
+                if isinstance(sub, ast.Attribute) and any(
+                    k in sub.attr.lower() for k in ("_pool", "pool", "_cache", "_flyweights", "flyweights")
+                ):
+                    has_pool_attr = True
+
+        has_cache_lookup = False
+        for m in methods:
+            for sub in ast.walk(m):
+                if isinstance(sub, ast.Compare):
+                    for comp in sub.comparators:
+                        if isinstance(comp, ast.Attribute) and any(
+                            k in comp.attr.lower() for k in ("pool", "flyweights", "cache")
+                        ):
+                            has_cache_lookup = True
+                            break
+                        elif isinstance(comp, ast.Name) and any(
+                            k in comp.id.lower() for k in ("pool", "flyweights", "cache")
+                        ):
+                            has_cache_lookup = True
+                            break
+
+        has_get_flyweight = bool(method_names & {"get_flyweight", "list_flyweights"}) or any(
+            m.name.startswith("get_") and "flyweight" in m.name.lower() for m in methods
+        )
+
+        if (has_pool_attr and (has_cache_lookup or is_flyweight_name)) or (is_flyweight_name and (has_pool_attr or has_get_flyweight)):
+            self.patterns.append(
+                PatternMatch(
+                    pattern_id="flyweight",
+                    pattern_name="Flyweight",
+                    category="structural",
+                    file_path=self.file_path,
+                    line_number=node.lineno,
+                    evidence=f"Class '{node.name}' manages shared intrinsic state pool/cache for Flyweight instances",
+                    confidence="high",
+                )
+            )
+
+    def _check_chain_of_responsibility_pattern(
+        self,
+        node: ast.ClassDef,
+        methods: list[ast.FunctionDef | ast.AsyncFunctionDef],
+        method_names: set[str],
+    ) -> None:
+        has_set_next = "set_next" in method_names
+        has_next_attr = False
+
+        for stmt in node.body:
+            if isinstance(stmt, (ast.Assign, ast.AnnAssign)):
+                target = stmt.targets[0] if isinstance(stmt, ast.Assign) else stmt.target
+                if isinstance(target, ast.Name) and any(
+                    k in target.id.lower() for k in ("_next_handler", "next_handler", "_next", "successor")
+                ):
+                    has_next_attr = True
+
+        init_methods = [m for m in methods if m.name in ("__init__", "set_next")]
+        for im in init_methods:
+            for sub in ast.walk(im):
+                if isinstance(sub, ast.Attribute) and any(
+                    k in sub.attr.lower() for k in ("_next_handler", "next_handler", "_next", "successor")
+                ):
+                    has_next_attr = True
+
+        forwards_to_next = False
+        for m in methods:
+            for sub in ast.walk(m):
+                if isinstance(sub, ast.Call) and isinstance(sub.func, ast.Attribute):
+                    if sub.func.attr == "handle":
+                        forwards_to_next = True
+                        break
+
+        name_lower = node.name.lower()
+        is_handler_name = "handler" in name_lower or "chain" in name_lower
+
+        if has_set_next or (has_next_attr and forwards_to_next) or (is_handler_name and has_next_attr):
+            self.patterns.append(
+                PatternMatch(
+                    pattern_id="chain_of_responsibility",
+                    pattern_name="Chain of Responsibility",
+                    category="behavioral",
+                    file_path=self.file_path,
+                    line_number=node.lineno,
+                    evidence=f"Class '{node.name}' implements Chain of Responsibility with sequential handler passing",
+                    confidence="high",
+                )
+            )
+
+    def _check_command_pattern(
+        self,
+        node: ast.ClassDef,
+        methods: list[ast.FunctionDef | ast.AsyncFunctionDef],
+        method_names: set[str],
+    ) -> None:
+        has_execute = "execute" in method_names
+        has_undo = bool(method_names & {"undo", "redo"})
+        inherits_command = any(
+            (isinstance(b, ast.Name) and "command" in b.id.lower())
+            or (isinstance(b, ast.Attribute) and "command" in b.attr.lower())
+            for b in node.bases
+        )
+        name_lower = node.name.lower()
+        is_command_name = name_lower.endswith("command") or name_lower == "command"
+        has_invoker_methods = bool(method_names & {"set_command", "execute_command", "add_command"})
+
+        if (has_execute and has_undo) or (inherits_command and has_execute) or (is_command_name and has_execute) or has_invoker_methods:
+            self.patterns.append(
+                PatternMatch(
+                    pattern_id="command",
+                    pattern_name="Command",
+                    category="behavioral",
+                    file_path=self.file_path,
+                    line_number=node.lineno,
+                    evidence=f"Class '{node.name}' encapsulates request as Command with execute() and undo() methods",
+                    confidence="high",
+                )
+            )
+
+    def _check_iterator_pattern(
+        self,
+        node: ast.ClassDef,
+        method_names: set[str],
+    ) -> None:
+        has_iter = "__iter__" in method_names
+        has_next = "__next__" in method_names
+        inherits_iterator = any(
+            (isinstance(b, ast.Name) and b.id in ("Iterator", "Iterable"))
+            or (isinstance(b, ast.Attribute) and b.attr in ("Iterator", "Iterable"))
+            for b in node.bases
+        )
+
+        if (has_iter and has_next) or (inherits_iterator and has_next):
+            self.patterns.append(
+                PatternMatch(
+                    pattern_id="iterator",
+                    pattern_name="Iterator",
+                    category="behavioral",
+                    file_path=self.file_path,
+                    line_number=node.lineno,
+                    evidence=f"Class '{node.name}' implements iterator protocol (__iter__ and __next__)",
+                    confidence="high",
+                )
+            )
+
+    def _check_mediator_pattern(
+        self,
+        node: ast.ClassDef,
+        methods: list[ast.FunctionDef | ast.AsyncFunctionDef],
+        method_names: set[str],
+    ) -> None:
+        name_lower = node.name.lower()
+        is_mediator_name = "mediator" in name_lower
+
+        has_mediator_notify = False
+        for m in methods:
+            if m.name == "notify" and len(m.args.args) >= 3:
+                has_mediator_notify = True
+                break
+
+        calls_mediator_notify = False
+        for m in methods:
+            for sub in ast.walk(m):
+                if (
+                    isinstance(sub, ast.Call)
+                    and isinstance(sub.func, ast.Attribute)
+                    and sub.func.attr == "notify"
+                    and isinstance(sub.func.value, ast.Attribute)
+                    and isinstance(sub.func.value.value, ast.Name)
+                    and sub.func.value.value.id == "self"
+                    and "mediator" in sub.func.value.attr.lower()
+                ):
+                    calls_mediator_notify = True
+                    break
+            if calls_mediator_notify:
+                break
+
+        has_mediator_attr = False
+        init_methods = [m for m in methods if m.name == "__init__"]
+        if init_methods:
+            for arg in init_methods[0].args.args + init_methods[0].args.kwonlyargs:
+                if "mediator" in arg.arg.lower():
+                    has_mediator_attr = True
+
+        if (is_mediator_name and (has_mediator_notify or len(methods) >= 1)) or has_mediator_notify or (calls_mediator_notify and has_mediator_attr):
+            self.patterns.append(
+                PatternMatch(
+                    pattern_id="mediator",
+                    pattern_name="Mediator",
+                    category="behavioral",
+                    file_path=self.file_path,
+                    line_number=node.lineno,
+                    evidence=f"Class '{node.name}' coordinates component communication via Mediator pattern",
+                    confidence="high",
+                )
+            )
+
+    def _check_memento_pattern(
+        self,
+        node: ast.ClassDef,
+        method_names: set[str],
+    ) -> None:
+        has_save = bool(method_names & {"save", "create_memento", "save_state", "backup"})
+        has_restore = bool(method_names & {"restore", "restore_memento", "restore_state", "undo"})
+
+        name_lower = node.name.lower()
+        is_memento_name = "memento" in name_lower or "caretaker" in name_lower or "originator" in name_lower
+
+        if (has_save and has_restore) or (is_memento_name and (has_save or has_restore or "get_state" in method_names)):
+            self.patterns.append(
+                PatternMatch(
+                    pattern_id="memento",
+                    pattern_name="Memento",
+                    category="behavioral",
+                    file_path=self.file_path,
+                    line_number=node.lineno,
+                    evidence=f"Class '{node.name}' captures and restores internal state snapshots (Memento pattern)",
+                    confidence="high",
+                )
+            )
+
+    def _check_state_pattern(
+        self,
+        node: ast.ClassDef,
+        methods: list[ast.FunctionDef | ast.AsyncFunctionDef],
+        method_names: set[str],
+    ) -> None:
+        has_transition = bool(method_names & {"transition_to", "change_state", "set_state"})
+
+        has_state_attr = False
+        init_methods = [m for m in methods if m.name == "__init__"]
+        if init_methods:
+            for sub in ast.walk(init_methods[0]):
+                if isinstance(sub, ast.Attribute) and sub.attr.lower() in ("_state", "state"):
+                    has_state_attr = True
+
+        for stmt in node.body:
+            if isinstance(stmt, (ast.Assign, ast.AnnAssign)):
+                target = stmt.targets[0] if isinstance(stmt, ast.Assign) else stmt.target
+                if isinstance(target, ast.Name) and target.id.lower() in ("_state", "state"):
+                    has_state_attr = True
+
+        inherits_state = any(
+            (isinstance(b, ast.Name) and "state" in b.id.lower())
+            or (isinstance(b, ast.Attribute) and "state" in b.attr.lower())
+            for b in node.bases
+        )
+        name_lower = node.name.lower()
+        is_state_name = name_lower.endswith("state") or name_lower == "state"
+
+        delegates_to_state = False
+        for m in methods:
+            if m.name.startswith("__"):
+                continue
+            for sub in ast.walk(m):
+                if (
+                    isinstance(sub, ast.Call)
+                    and isinstance(sub.func, ast.Attribute)
+                    and isinstance(sub.func.value, ast.Attribute)
+                    and isinstance(sub.func.value.value, ast.Name)
+                    and sub.func.value.value.id == "self"
+                    and sub.func.value.attr in ("_state", "state")
+                ):
+                    delegates_to_state = True
+                    break
+            if delegates_to_state:
+                break
+
+        has_abstract = any(self._is_abstract_method(m) for m in methods)
+
+        if (
+            (has_transition and (has_state_attr or delegates_to_state))
+            or (has_state_attr and delegates_to_state)
+            or (is_state_name and has_abstract)
+            or (inherits_state and not is_state_name)
+            or (is_state_name and inherits_state)
+        ):
+            self.patterns.append(
+                PatternMatch(
+                    pattern_id="state",
+                    pattern_name="State",
+                    category="behavioral",
+                    file_path=self.file_path,
+                    line_number=node.lineno,
+                    evidence=f"Class '{node.name}' alters behavior when its internal state changes (State pattern)",
+                    confidence="medium",
                 )
             )
 

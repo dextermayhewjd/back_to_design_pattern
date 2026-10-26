@@ -13,7 +13,7 @@ Designed for human software engineers, engineering teams, and AI coding agents (
 
 - **All 22 Gang of Four Patterns**: Complete catalog across Creational, Structural, and Behavioral categories with rich metadata (intent, problem, solution, applicability, pros, cons, and executable code).
 - **3-Tier Version Evolution Matrix (`pat matrix`)**: Compare and choose between `classic` GoF OOP hierarchies (ABCs), idiomatic `3.10+` baseline (`match-case`, `@dataclass(slots=True, kw_only=True)`, closures), and next-generation `3.12+` syntax (PEP 695 type parameters `class C[T]:`, `typing.Self`, PEP 698 `@override`).
-- **AST Pattern Analyzer & Anti-Pattern Detector (`pat analyze`)**: Static AST analysis of Python source files and directories to automatically identify implemented design patterns (Visitor, Singleton, Composite, Decorator, Proxy, Observer, Template Method, and Strategy), detect code smells (Single-Method Class, Parameter Explosion, Complex Branching, and Manual Iterator), and suggest version modernization opportunities.
+- **AST Pattern Analyzer & Anti-Pattern Detector (`pat analyze`)**: Static AST analysis of Python source files and directories to automatically identify implemented design patterns across all 22 Gang of Four (GoF) patterns, detect 4 code smells / anti-patterns (Single-Method Class, Parameter Explosion, Complex Branching, and Manual Iterator), and suggest version modernization opportunities.
 - **Pythonic-First Architecture**: Built on the "Stop Writing Classes" principle—prioritizing functions, `Callable`, structural pattern matching, dataclasses, and `@singledispatch` over heavyweight OOP boilerplate.
 - **Intelligent Diagnostic Recommender**: Natural-language search engine matching architectural friction statements to candidate patterns with confidence scores, rationale, and runtime requirements.
 - **Interactive Diagnostic Wizard**: Guided step-by-step questionnaire diagnosing architectural friction and recommending optimal patterns.
@@ -111,15 +111,33 @@ bin/pat analyze src/
 ```
 
 The analyzer statically detects:
-1. **Implemented Design Patterns**: Recognizes 8 classic patterns across Python codebases:
-   - **Visitor**: Classes implementing the visitor interface (`accept` method or `visit_*` dispatch).
-   - **Singleton**: Classes controlling instance creation via `__new__` instance caching or singleton metaclasses.
-   - **Composite**: Classes managing child component hierarchies with `add`/`remove` methods.
-   - **Decorator & Proxy**: Classes wrapping an inner component or target and delegating method calls.
-   - **Observer**: Classes managing event subscriptions (`subscribe`/`attach`) and publishing notifications (`notify`/`publish`).
-   - **Template Method**: Abstract classes coordinating abstract/hook methods from a template skeleton method.
-   - **Strategy**: Context classes delegating execution to an injected strategy argument or Callable.
-2. **Code Smells & Anti-Patterns**:
+1. **Implemented Design Patterns**: Recognizes all 22 classic Gang of Four (GoF) patterns across Python codebases:
+   - **Creational (5)**:
+     - **Factory Method**: Virtual/abstract creation methods (`factory_method`, `create_*`, `make_*`) for deferred object creation.
+     - **Abstract Factory**: Classes declaring multiple abstract factory methods for families of related objects.
+     - **Builder**: Classes with `build()` methods and fluent method chaining (`return self`) or Director coordination.
+     - **Prototype**: Classes implementing `clone()` methods or `__copy__`/`__deepcopy__` replication.
+     - **Singleton**: Classes controlling instance creation via `__new__` instance caching or singleton metaclasses.
+   - **Structural (7)**:
+     - **Adapter**: Classes wrapping an adaptee/legacy object and translating interfaces and calls to it.
+     - **Bridge**: Classes decoupling abstraction from implementation via a delegated implementor or device.
+     - **Composite**: Classes managing child component hierarchies with `add`/`remove` methods.
+     - **Decorator**: Classes wrapping an inner component and transparently augmenting/delegating calls.
+     - **Facade**: Classes providing a simplified unified interface coordinating multiple underlying subsystems.
+     - **Flyweight**: Classes/factories managing shared intrinsic state pools and caches for efficient instance reuse.
+     - **Proxy**: Classes controlling access, authentication, or lazy loading for an underlying real subject.
+   - **Behavioral (10)**:
+     - **Chain of Responsibility**: Classes with `set_next()` or next-handler forwarding chains.
+     - **Command**: Classes encapsulating requests with `execute()` and `undo()`/`redo()` methods.
+     - **Iterator**: Classes implementing the Python iterator protocol (`__iter__` and `__next__`).
+     - **Mediator**: Classes coordinating communication between multiple peer components without tight coupling.
+     - **Memento**: Classes capturing and restoring internal state snapshots (`save()` / `restore()`).
+     - **Observer**: Classes managing event subscriptions (`subscribe`/`attach`) and publishing notifications (`notify`/`publish`).
+     - **State**: Classes altering behavior when internal state changes via state transitions and state delegation.
+     - **Strategy**: Context classes delegating execution to an injected strategy argument or Callable.
+     - **Template Method**: Abstract classes coordinating abstract/hook methods from a template skeleton method.
+     - **Visitor**: Classes implementing the visitor interface (`accept` method or `visit_*` dispatch).
+2. **Code Smells & Anti-Patterns (4)**:
    - **Single-Method Class ("Java in Python")**: Flags classes with only 1 public method, recommending refactoring to a plain function or Callable strategy.
    - **Parameter Explosion**: Flags functions or methods with more than 5 parameters, recommending grouping into a `@dataclass(kw_only=True)` or Builder.
    - **Complex Branching**: Flags functions with more than 3 `if`/`elif` branches, recommending refactoring to `match-case` or Strategy dispatch.
