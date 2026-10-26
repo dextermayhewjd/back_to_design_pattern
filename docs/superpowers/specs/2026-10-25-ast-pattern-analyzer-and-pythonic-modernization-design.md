@@ -1,50 +1,58 @@
 # Design Document: AST Pattern Analyzer & Pythonic Modernization
 
 ## 1. Intent and Why
-While the GoF design patterns provide foundational object-oriented abstractions, developers and AI agents frequently face two practical challenges:
-1. **Lack of Reverse Architectural Insight**: Developers looking at legacy or foreign code often struggle to discern what patterns are already in use or where code smells (e.g., giant condition switches, telescoping constructors) would benefit from refactoring into specific patterns.
-2. **Java-Style Over-Engineering in Python**: Classic GoF patterns originated in early C++/Java and rely heavily on rigid class hierarchies. In modern Python 3.10+, language features such as first-class functions, closures, `functools.singledispatch`, generators (`yield`), dataclasses, and decorators provide vastly simpler, more idiomatic solutions. Agents without explicit guidance tend to write verbose, boilerplated OOP classes rather than idiomatic Python.
+While the GoF design patterns provide foundational object-oriented abstractions, developers and AI agents frequently face two practical challenges in Python codebases:
+1. **The "Writing Java in Python" Anti-Pattern**: Classic GoF patterns were conceived in 1994 for early C++ and Java before functions were first-class citizens and before language features like closures, decorators, generators, and duck typing existed. In modern Python 3.10+, dogmatically creating class hierarchies for patterns like Strategy, Command, Iterator, Singleton, and Visitor is an anti-pattern that violates Pythonic simplicity (the "Stop Writing Classes" principle).
+2. **Lack of Reverse Architectural Insight**: Developers looking at legacy or foreign code often struggle to discern what patterns are already in use or where code smells (e.g., giant condition switches, single-method classes, telescoping constructors) would benefit from refactoring into cleaner Pythonic idioms or appropriate structural patterns.
 
-This project enhances the `pat` CLI and agent plugin with:
-- An offline, zero-dependency AST static code analyzer (`pat analyze <path>`) that detects existing design patterns and flags code smells with pattern recommendations.
-- A comprehensive modernization of all 22 GoF patterns with **Pythonic Idioms** (`--type pythonic` and modern contrast notes).
-- Updated agent rules and skills empowering agents to reverse-analyze code and favor Pythonic idioms over heavy class boilerplate.
+This project refactors the `pat` CLI and universal agent plugin to be strictly **Pythonic-First**:
+- **Default to Idiomatic Python**: `pat code <id>` defaults to modern Python 3.10+ implementations (functions as first-class citizens, generators, dataclasses, decorators, `singledispatch`). Classical verbose OOP class hierarchies are retained as `--type classic-oop` for reference.
+- **Reverse AST Analyzer (`pat analyze <path>`)**: An offline, zero-dependency AST static code analyzer that detects existing patterns and flags "Java-in-Python" code smells with specific Pythonic refactoring recommendations.
+- **Pythonic Agent Rules & Skills**: Updates agent rules to enforce "Pythonic First: Prefer functions, dataclasses, and generators over boilerplate OOP classes" (YAGNI/KISS).
 
 ---
 
 ## 2. Goals, Non-Goals, and Anti-Goals
 
 ### Goals
-- **AST Pattern Recognition (`pat analyze <path>`)**:
+- **Pythonic-First by Default**:
+  - `pat code <pattern_id>` outputs the modern, lightweight, idiomatic Python 3.10+ solution by default.
+  - Classical verbose OOP implementations remain available via `--type classic-oop`.
+  - `pat show <pattern_id>` highlights the Pythonic alternative prominently at the top with "When to avoid writing a class".
+- **AST Pattern & Anti-Pattern Recognition (`pat analyze <path>`)**:
   - Analyze Python files or entire directories using standard library `ast`.
   - Detect common pattern signatures:
-    - **Visitor**: `accept` method dispatching to `visit_*` or `singledispatch`.
-    - **Singleton**: Overridden `__new__` or metaclass instance dictionary check.
+    - **Visitor**: `accept` method dispatching to `visit_*` or `@singledispatch`.
+    - **Singleton**: Overridden `__new__`, metaclass instance cache, or module-level singletons.
     - **Composite**: Class holding a collection of its own base type with recursive calls.
-    - **Decorator / Proxy**: Wrapper classes delegating to an internal instance.
-    - **Observer**: Classes managing subscriber lists with subscribe/notify methods.
+    - **Decorator / Proxy**: Wrapper classes delegating to an internal instance or `@wraps` decorators.
+    - **Observer**: Classes managing subscriber callbacks with subscribe/notify methods.
     - **Template Method**: Base class with invariant method calling abstract step methods.
-    - **Strategy**: Classes taking `Callable` or strategy instances for algorithmic execution.
-  - Detect architectural code smells:
-    - **Complex State/Type Branching**: >3 `if/elif/else` branches on status/type -> suggest `State` or `Strategy`.
-    - **Constructor Parameter Explosion**: `__init__` with >5 parameters -> suggest `Builder` or `dataclass`.
-    - **Hardcoded Concrete Instantiations**: Class instantiation inside business logic -> suggest `Factory Method`.
-- **Pythonic Idioms for all 22 Patterns**:
+    - **Strategy**: Classes or functions taking `Callable` or strategy instances.
+  - Detect architectural code smells and "Java-in-Python" anti-patterns:
+    - **Single-Method Classes (Java-style Strategy/Command)**: Class with only `__init__` and `run()`/`execute()` -> suggest refactoring to a plain function (`Callable`).
+    - **Complex State/Type Branching**: >3 `if/elif/else` branches on status/type -> suggest `State` or dictionary dispatch.
+    - **Constructor Parameter Explosion**: `__init__` with >5 parameters -> suggest `dataclass(kw_only=True)`.
+    - **Manual Iterator Class**: Class with explicit `__next__` raising `StopIteration` -> suggest generator with `yield`.
+    - **Hardcoded Concrete Instantiations**: Class instantiation inside business logic -> suggest `Factory Method` or dependency injection.
+- **Pythonic Implementations across all 22 Patterns**:
   - Add `pythonic_code: str` and `pythonic_notes: str` to `Pattern`.
-  - Showcase modern Python 3.10+ alternatives for each pattern:
-    - *Strategy*: First-class functions (`Callable`) vs Strategy class hierarchies.
-    - *Visitor*: `functools.singledispatch` / `singledispatchmethod` vs double dispatch.
+  - Specific modern Python 3.10+ mappings:
+    - *Strategy*: First-class functions (`Callable`) & dictionary dispatch vs Strategy class hierarchies.
+    - *Visitor*: `@functools.singledispatch` / `@singledispatchmethod` vs double dispatch.
     - *Iterator*: Generator functions (`yield` / `yield from`) vs iterator classes.
-    - *Decorator*: Native `@decorator` syntax with `functools.wraps`.
+    - *Decorator*: Native `@decorator` syntax with `functools.wraps` vs wrapper classes.
     - *Builder*: `dataclasses.dataclass(kw_only=True)` vs telescoping builders.
     - *Singleton*: Module-level singletons (Python's native import cache) vs metaclasses.
-    - *Command*: Closures and `functools.partial` vs Command objects.
-    - *Observer*: `collections.defaultdict` event callbacks vs Subject/Observer interfaces.
-- **CLI Enhancements**:
+    - *Command*: Closures and `functools.partial` vs Command classes.
+    - *Observer*: `collections.defaultdict` event callbacks & context managers vs Subject/Observer interfaces.
+    - *Template Method*: Abstract base classes with hook methods vs higher-order functions.
+- **CLI Commands**:
   - `pat analyze <file_or_dir> [--json]`: Run AST pattern and smell detection.
-  - `pat code <id> --type [conceptual|realworld|pythonic]`: Display modern Pythonic code.
-  - `pat show <id>`: Include `## Pythonic 现代惯用法 (Modern Pythonic Idiom)`.
+  - `pat code <id> [--type pythonic|realworld|classic-oop]`: Defaults to `pythonic`.
+  - `pat show <id>`: Displays Pythonic Idioms and "When to avoid writing classes".
 - **Zero Heavy Runtime Dependencies**: Pure Python Standard Library (`ast`, `argparse`, `dataclasses`, `typing`, `sys`, `pathlib`).
+
 
 ### Non-Goals
 - Full-blown type inference engine or linter replacement (not a replacement for mypy or ruff).
