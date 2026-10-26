@@ -136,6 +136,53 @@ class ShoppingCart:
     assert not any(s.smell_type == "SINGLE_METHOD_CLASS" for s in smells)
 
 
+def test_dataclass_with_to_dict_not_flagged_as_single_method():
+    source = """
+from dataclasses import dataclass
+
+@dataclass
+class AnalysisReport:
+    files_scanned: int
+    total_lines: int
+
+    def to_dict(self) -> dict:
+        return {"files_scanned": self.files_scanned, "total_lines": self.total_lines}
+"""
+    analyzer = CodebaseAnalyzer()
+    _, smells = analyzer.analyze_source(source)
+    assert not any(s.smell_type == "SINGLE_METHOD_CLASS" for s in smells)
+
+
+def test_dataclass_with_args_and_helper_not_flagged_as_single_method():
+    source = """
+from dataclasses import dataclass
+
+@dataclass(slots=True, kw_only=True)
+class UserProfile:
+    username: str
+
+    def format_display(self) -> str:
+        return f"User: {self.username}"
+"""
+    analyzer = CodebaseAnalyzer()
+    _, smells = analyzer.analyze_source(source)
+    assert not any(s.smell_type == "SINGLE_METHOD_CLASS" for s in smells)
+
+
+def test_annotated_fields_class_not_flagged_as_single_method():
+    source = """
+class DataRecord:
+    name: str
+    count: int
+
+    def summarize(self) -> str:
+        return f"{self.name}: {self.count}"
+"""
+    analyzer = CodebaseAnalyzer()
+    _, smells = analyzer.analyze_source(source)
+    assert not any(s.smell_type == "SINGLE_METHOD_CLASS" for s in smells)
+
+
 def test_detect_parameter_explosion_smell():
     source = """
 class ServerConfig:

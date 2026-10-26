@@ -99,6 +99,12 @@ def build_parser() -> argparse.ArgumentParser:
     # scaffold
     scaffold_p = subparsers.add_parser("scaffold", help="Generate boilerplate template")
     scaffold_p.add_argument("pattern", help="Pattern identifier")
+    scaffold_p.add_argument(
+        "--py",
+        choices=["auto", "classic", "3.10", "3.12"],
+        default="auto",
+        help="Python version target tier (default: auto)",
+    )
     scaffold_p.add_argument("--out", "-o", help="Target output file path")
     scaffold_p.add_argument(
         "--overwrite", "--force",
@@ -318,12 +324,20 @@ def handle_scaffold(args: argparse.Namespace) -> int:
         sys.stderr.write(_pattern_not_found_error(args.pattern, registry))
         return 1
 
-    template = pattern.scaffold_template
+    py_choice = getattr(args, "py", "auto")
+    if py_choice == "classic":
+        template = pattern.scaffold_template or pattern.classic_code
+    elif py_choice == "3.12":
+        template = pattern.python312_code or pattern.python310_code or pattern.scaffold_template
+    else:  # "3.10" or "auto"
+        template = pattern.python310_code or pattern.scaffold_template
+
     if not args.out:
         if getattr(args, "json", False):
             data = {
                 "id": pattern.id,
                 "name": pattern.name,
+                "py": py_choice,
                 "scaffold_template": template,
             }
             print(json.dumps(data, indent=2, ensure_ascii=False))

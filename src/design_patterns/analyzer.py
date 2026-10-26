@@ -133,6 +133,23 @@ class _ASTAnalyzerVisitor(ast.NodeVisitor):
         if "__iter__" in method_names and "__next__" in method_names:
             return
 
+        # Exclude classes decorated with @dataclass or @dataclass(...)
+        def _is_dataclass(dec: ast.AST) -> bool:
+            if isinstance(dec, ast.Name) and dec.id == "dataclass":
+                return True
+            if isinstance(dec, ast.Attribute) and dec.attr == "dataclass":
+                return True
+            if isinstance(dec, ast.Call):
+                return _is_dataclass(dec.func)
+            return False
+
+        if any(_is_dataclass(dec) for dec in node.decorator_list):
+            return
+
+        # Exclude classes that contain class-level type annotations (indicating data fields)
+        if any(isinstance(stmt, ast.AnnAssign) for stmt in node.body):
+            return
+
         # Class with exactly 1 public method (excluding visitor accept method)
         if len(public_methods) == 1:
             method_name = public_methods[0].name

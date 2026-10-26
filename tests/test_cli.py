@@ -183,6 +183,22 @@ def test_cli_scaffold_unknown(capsys):
     assert "Error: Pattern 'unknown-pat' not found" in captured.err
 
 
+def test_cli_scaffold_py_flag(tmp_path):
+    target_310 = tmp_path / "strategy_310.py"
+    ret = main(["scaffold", "strategy", "-o", str(target_310), "--py", "3.10"])
+    assert ret == 0
+    assert target_310.exists()
+    content_310 = target_310.read_text(encoding="utf-8")
+    assert "Callable" in content_310
+
+    target_classic = tmp_path / "strategy_classic.py"
+    ret = main(["scaffold", "strategy", "-o", str(target_classic), "--py", "classic"])
+    assert ret == 0
+    assert target_classic.exists()
+    content_classic = target_classic.read_text(encoding="utf-8")
+    assert "ABC" in content_classic
+
+
 def test_cli_recommend_query(capsys):
     ret = main(["recommend", "-q", "swap interchangeable algorithms at runtime"])
     assert ret == 0

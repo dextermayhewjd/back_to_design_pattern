@@ -13,7 +13,7 @@ Designed for human software engineers, engineering teams, and AI coding agents (
 
 - **All 22 Gang of Four Patterns**: Complete catalog across Creational, Structural, and Behavioral categories with rich metadata (intent, problem, solution, applicability, pros, cons, and executable code).
 - **3-Tier Version Evolution Matrix (`pat matrix`)**: Compare and choose between `classic` GoF OOP hierarchies (ABCs), idiomatic `3.10+` baseline (`match-case`, `@dataclass(slots=True, kw_only=True)`, closures), and next-generation `3.12+` syntax (PEP 695 type parameters `class C[T]:`, `typing.Self`, PEP 698 `@override`).
-- **AST Pattern Analyzer & Anti-Pattern Detector (`pat analyze`)**: Static AST analysis of Python source files and directories to automatically identify implemented design patterns, detect Java-in-Python anti-patterns (such as single-method classes and getter/setter sprawl), and suggest version modernization opportunities.
+- **AST Pattern Analyzer & Anti-Pattern Detector (`pat analyze`)**: Static AST analysis of Python source files and directories to automatically identify implemented design patterns (Visitor, Singleton, Composite, Decorator, Proxy, Observer, Template Method, and Strategy), detect code smells (Single-Method Class, Parameter Explosion, Complex Branching, and Manual Iterator), and suggest version modernization opportunities.
 - **Pythonic-First Architecture**: Built on the "Stop Writing Classes" principle—prioritizing functions, `Callable`, structural pattern matching, dataclasses, and `@singledispatch` over heavyweight OOP boilerplate.
 - **Intelligent Diagnostic Recommender**: Natural-language search engine matching architectural friction statements to candidate patterns with confidence scores, rationale, and runtime requirements.
 - **Interactive Diagnostic Wizard**: Guided step-by-step questionnaire diagnosing architectural friction and recommending optimal patterns.
@@ -64,14 +64,14 @@ You can directly run the launcher script from the repository root:
 | `code` | `--py <auto\|classic\|3.10\|3.12>`, `-t`, `--type`, `--json` | Print Python implementation code for a pattern | `bin/pat code strategy --py 3.10` |
 | `matrix` | `--json` | Display 3-tier version evolution matrix (`classic`, `3.10`, `3.12`) | `bin/pat matrix strategy` |
 | `analyze` | `--json` | Statically analyze Python code for patterns and anti-patterns | `bin/pat analyze src/` |
-| `scaffold` | `-o`, `--out`, `--force` / `--overwrite`, `--json` | Generate starter code for a pattern to a target file | `bin/pat scaffold strategy -o src/strategy.py --force` |
+| `scaffold` | `--py <auto\|classic\|3.10\|3.12>`, `-o`, `--out`, `--force` / `--overwrite`, `--json` | Generate starter code for a pattern to a target file | `bin/pat scaffold strategy -o src/strategy.py --force` |
 | `recommend` | `-q`, `--query`, `-i`, `--interactive`, `--top`, `--json` | Recommend patterns from a natural-language description | `bin/pat recommend -q "notify multiple UI elements"` |
 | `search` | Alias to `recommend --query` (`--top`, `--json`) | Search pattern names, intents, and keywords | `bin/pat search "decouple abstraction"` |
 | `diagnose` | Alias to `recommend --interactive` (`--json`) | Interactive diagnostic wizard to find the right pattern | `bin/pat diagnose` |
 | `run` | `--py <auto\|classic\|3.10\|3.12>`, `-t`, `--type` | Execute runnable pattern example directly | `bin/pat run strategy --py 3.12` |
 
 ### CLI Options & Flags
-- `--py <auto|classic|3.10|3.12>`: Target Python version tier for code and run commands (default: `auto`).
+- `--py <auto|classic|3.10|3.12>`: Target Python version tier for code, run, and scaffold commands (default: `auto`).
 - `--json`: Output results in structured JSON format (ideal for AI agents).
 - `--summary`: Output a concise summary without full source code.
 - `--category <creational|structural|behavioral>`: Filter list results by category.
@@ -111,10 +111,20 @@ bin/pat analyze src/
 ```
 
 The analyzer statically detects:
-1. **Implemented Design Patterns**: Recognizes Strategy, Observer, Command, Singleton, and Template Method patterns in active use.
-2. **"Stop Writing Classes" Smells**: Flags classes that define only an `__init__` and a single execution method (e.g., `execute()`, `call()`, `handle()`), recommending refactoring to plain functions or closures.
-3. **Java-in-Python Anti-Patterns**: Detects un-Pythonic getter and setter pairs (`get_value()`, `set_value()`) that should be replaced with Python `@property` or `@dataclass`.
-4. **Modernization Opportunities**: Suggests upgrades to Python 3.10+ structural pattern matching, union syntax, or Python 3.12+ generic parameters.
+1. **Implemented Design Patterns**: Recognizes 8 classic patterns across Python codebases:
+   - **Visitor**: Classes implementing the visitor interface (`accept` method or `visit_*` dispatch).
+   - **Singleton**: Classes controlling instance creation via `__new__` instance caching or singleton metaclasses.
+   - **Composite**: Classes managing child component hierarchies with `add`/`remove` methods.
+   - **Decorator & Proxy**: Classes wrapping an inner component or target and delegating method calls.
+   - **Observer**: Classes managing event subscriptions (`subscribe`/`attach`) and publishing notifications (`notify`/`publish`).
+   - **Template Method**: Abstract classes coordinating abstract/hook methods from a template skeleton method.
+   - **Strategy**: Context classes delegating execution to an injected strategy argument or Callable.
+2. **Code Smells & Anti-Patterns**:
+   - **Single-Method Class ("Java in Python")**: Flags classes with only 1 public method, recommending refactoring to a plain function or Callable strategy.
+   - **Parameter Explosion**: Flags functions or methods with more than 5 parameters, recommending grouping into a `@dataclass(kw_only=True)` or Builder.
+   - **Complex Branching**: Flags functions with more than 3 `if`/`elif` branches, recommending refactoring to `match-case` or Strategy dispatch.
+   - **Manual Iterator**: Flags classes manually implementing `__iter__` and `__next__`, recommending replacement with a generator function using `yield`.
+3. **Modernization Opportunities**: Suggests upgrades to Python 3.10+ structural pattern matching, union syntax, or Python 3.12+ generic parameters.
 
 ---
 

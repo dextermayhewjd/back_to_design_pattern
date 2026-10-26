@@ -71,10 +71,13 @@ For machine-readable JSON output suitable for programmatic agent parsing:
 bin/pat analyze src/ --json
 ```
 Detects:
-- Single-method classes that should be plain functions ("Stop Writing Classes").
-- Un-Pythonic getters and setters (`get_x`, `set_x`).
-- Identified GoF design patterns (Strategy, Observer, Command, Singleton, Template Method).
-- Version modernization opportunities (Python 3.10+ and 3.12+ enhancements).
+- **Detected Design Patterns**: Visitor, Singleton, Composite, Decorator, Proxy, Observer, Template Method, and Strategy.
+- **Detected Code Smells**:
+  - Single-Method Class ("Java in Python", recommend plain function or Callable).
+  - Parameter Explosion (>5 parameters, recommend `@dataclass(kw_only=True)` or Builder).
+  - Complex Branching (>3 `if`/`elif` branches, recommend `match-case` or Strategy).
+  - Manual Iterator (`__iter__` and `__next__`, recommend generator `yield`).
+- **Modernization Opportunities**: Version baseline modernization recommendations (Python 3.10+ and 3.12+ enhancements).
 
 #### B. Comparing Version Evolution Matrix (`pat matrix`)
 Compare the 3-tier implementation matrix (`classic`, `3.10+`, `3.12+`) for a pattern:
@@ -156,7 +159,7 @@ When evaluating an existing codebase or reviewing pull requests for architectura
 ```bash
 ./bin/pat analyze src/
 ```
-*Agent action*: Parse the output. If anti-patterns like single-method classes or un-Pythonic getters/setters are reported, refactor them to plain functions, `@property`, or `@dataclass`.
+*Agent action*: Parse the output. If code smells like single-method classes, parameter explosion, complex branching, or manual iterators are reported, refactor them according to the analyzer's recommendations (plain functions, `@dataclass`, `match-case`, or generators).
 
 ### Scenario 2: Paradigm Matrix Comparison
 When planning how to implement a design pattern across different Python target versions:
