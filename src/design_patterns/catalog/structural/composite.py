@@ -82,6 +82,8 @@ if __name__ == "__main__":
 PYTHON310_CODE = '''"""
 Composite - Python 3.10+ Example: Dataclass Tree & Recursive Generator Traversal
 """
+from __future__ import annotations
+
 from collections.abc import Iterator
 from dataclasses import dataclass, field
 
@@ -101,9 +103,9 @@ class Item:
 @dataclass
 class Box:
     name: str
-    children: list[Item | "Box"] = field(default_factory=list)
+    children: list[Item | Box] = field(default_factory=list)
 
-    def add(self, child: Item | "Box") -> "Box":
+    def add(self, child: Item | Box) -> Box:
         self.children.append(child)
         return self
 

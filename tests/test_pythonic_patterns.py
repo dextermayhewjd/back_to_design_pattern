@@ -53,6 +53,18 @@ def test_all_patterns_have_3tier_evolution_matrix():
         compile(p.python310_code, f"{p.id}_python310", "exec")
 
 
+def test_all_patterns_classic_code_executes():
+    for p in ALL_PATTERNS:
+        exec_scope = {"__name__": "__main__"}
+        exec(p.classic_code, exec_scope)
+
+
+def test_all_patterns_python310_code_executes():
+    for p in ALL_PATTERNS:
+        exec_scope = {"__name__": "__main__"}
+        exec(p.python310_code, exec_scope)
+
+
 @pytest.mark.skipif(sys.version_info < (3, 12), reason="Requires Python 3.12+ to compile PEP 695 syntax")
 def test_all_patterns_312_code_compiles_and_executes():
     for p in ALL_PATTERNS:
