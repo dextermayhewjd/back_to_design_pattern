@@ -54,20 +54,24 @@ You can directly run the launcher script from the repository root:
 
 ## CLI Commands Cheat Sheet
 
-| Command | Description | Example |
-| :--- | :--- | :--- |
-| `list` | List all patterns, optionally filtered by category | `bin/pat list --category creational` |
-| `show` | Display detailed documentation and code for a pattern | `bin/pat show observer --summary` |
-| `search` | Search pattern names, intents, and keywords | `bin/pat search "decouple abstraction"` |
-| `recommend` | Recommend patterns from a natural-language description | `bin/pat recommend -q "notify multiple UI elements"` |
-| `scaffold` | Generate starter code for a pattern to a target file | `bin/pat scaffold strategy --out src/strategy.py` |
-| `diagnose` | Interactive diagnostic wizard to find the right pattern | `bin/pat diagnose` |
+| Command | Aliases / Key Flags | Description | Example |
+| :--- | :--- | :--- | :--- |
+| `list` | `-c`, `--category`, `--json` | List all patterns, optionally filtered by category | `bin/pat list --category creational` |
+| `show` | `--summary`, `--json` | Display detailed documentation and code for a pattern | `bin/pat show observer --summary` |
+| `code` | `-t`, `--type <conceptual\|realworld>`, `--json` | Print Python implementation code for a pattern | `bin/pat code strategy --type realworld` |
+| `scaffold` | `-o`, `--out`, `--force` / `--overwrite`, `--json` | Generate starter code for a pattern to a target file | `bin/pat scaffold strategy --out src/strategy.py --force` |
+| `recommend` | `-q`, `--query`, `-i`, `--interactive`, `--top`, `--json` | Recommend patterns from a natural-language description | `bin/pat recommend -q "notify multiple UI elements"` |
+| `search` | Alias to `recommend --query` (`--top`, `--json`) | Search pattern names, intents, and keywords | `bin/pat search "decouple abstraction"` |
+| `diagnose` | Alias to `recommend --interactive` (`--json`) | Interactive diagnostic wizard to find the right pattern | `bin/pat diagnose` |
+| `run` | `-t`, `--type <conceptual\|realworld>` | Execute runnable pattern example directly | `bin/pat run singleton --type conceptual` |
 
 ### CLI Options & Flags
 - `--json`: Output results in structured JSON format (ideal for AI agents).
 - `--summary`: Output a concise summary without full source code.
-- `--category <creational\|structural\|behavioral>`: Filter list or search results.
-- `--force`: Overwrite existing files during scaffolding.
+- `--category <creational\|structural\|behavioral>`: Filter list results by category.
+- `--force` / `--overwrite`: Overwrite existing destination file during scaffolding.
+- `--type <conceptual|realworld>`: Select implementation variant for code inspection or execution.
+- `--top <n>`: Limit number of recommendations returned (default: 3).
 
 ### CLI Examples
 

@@ -1,9 +1,11 @@
 """Pattern recommendation engine and diagnostic wizard."""
 
+from __future__ import annotations
+
 import re
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Optional
 from design_patterns.models import Category, Pattern
 from design_patterns.registry import PatternRegistry
 
@@ -37,25 +39,27 @@ class PatternRecommender:
             return []
 
         query_tokens = self._tokenize(query)
-        if not query_tokens:
-            return []
-
         scored_results: list[RecommendationResult] = []
 
         for pattern in self.registry.list_all():
             score = 0.0
             matched: list[str] = []
 
-            # 1. Direct name match (weight: 15)
+            # 1. Full query substring match for Chinese name (e.g. unspaced Chinese sentences)
+            if pattern.chinese_name and pattern.chinese_name in query:
+                score += 15.0
+                matched.append(f"Chinese name match: {pattern.chinese_name}")
+
+            # 2. Direct name match (weight: 15)
             for token in query_tokens:
                 if token in pattern.id.lower() or token in pattern.name.lower():
                     score += 15.0
                     matched.append(f"Name match: {token}")
-                if token in pattern.chinese_name:
+                if token in pattern.chinese_name and f"Chinese name match: {pattern.chinese_name}" not in matched:
                     score += 15.0
                     matched.append(f"Chinese name match: {token}")
 
-            # 2. Symptoms match (weight: 5.0)
+            # 3. Symptoms match (weight: 5.0)
             for symptom in pattern.symptoms:
                 symptom_tokens = self._tokenize(symptom)
                 overlap = query_tokens.intersection(symptom_tokens)
@@ -65,19 +69,19 @@ class PatternRecommender:
                         if term not in matched:
                             matched.append(term)
 
-            # 3. Problem text match (weight: 2.0)
+            # 4. Problem text match (weight: 2.0)
             problem_tokens = self._tokenize(pattern.problem)
             problem_overlap = query_tokens.intersection(problem_tokens)
             if problem_overlap:
                 score += 2.0 * len(problem_overlap)
 
-            # 4. Intent match (weight: 2.5)
+            # 5. Intent match (weight: 2.5)
             intent_tokens = self._tokenize(pattern.intent)
             intent_overlap = query_tokens.intersection(intent_tokens)
             if intent_overlap:
                 score += 2.5 * len(intent_overlap)
 
-            # 5. Applicability match (weight: 1.5)
+            # 6. Applicability match (weight: 1.5)
             for app in pattern.applicability:
                 app_tokens = self._tokenize(app)
                 app_overlap = query_tokens.intersection(app_tokens)
@@ -103,11 +107,16 @@ class PatternRecommender:
 
     def run_interactive_wizard(
         self,
-        input_fn: Callable[[str], str] = input,
-        print_fn: Callable[[Any], None] = print,
+        input_fn: Callable[[str], str] | None = None,
+        print_fn: Callable[[Any], None] | None = None,
     ) -> list[RecommendationResult]:
+        if input_fn is None:
+            input_fn = input
+        if print_fn is None:
+            print_fn = print
+
         print_fn("=== Design Pattern Diagnostic Wizard ===")
-        print_fn("Answer 2-3 quick questions to diagnose the ideal pattern for your design challenge.\\n")
+        print_fn("Answer 2-3 quick questions to diagnose the ideal pattern for your design challenge.\n")
 
         print_fn("Step 1: What is your primary design tension?")
         print_fn("  [1] Object Creation & Initialization (Creational)")
@@ -125,7 +134,7 @@ class PatternRecommender:
         pattern_id = "strategy"
 
         if category == Category.CREATIONAL:
-            print_fn("\\nStep 2: What is the object creation challenge?")
+            print_fn("\nStep 2: What is the object creation challenge?")
             print_fn("  [1] Need to create families of related products without concrete classes")
             print_fn("  [2] Delegate instantiation to subclasses based on context")
             print_fn("  [3] Multi-step construction of complex object with many optional fields")
@@ -142,7 +151,7 @@ class PatternRecommender:
             pattern_id = mapping.get(choice, "factory-method")
 
         elif category == Category.STRUCTURAL:
-            print_fn("\\nStep 2: What structural issue are you solving?")
+            print_fn("\nStep 2: What structural issue are you solving?")
             print_fn("  [1] Convert incompatible interface to match target system")
             print_fn("  [2] Decouple abstraction and implementation along independent dimensions")
             print_fn("  [3] Represent part-whole recursive tree hierarchy")
@@ -163,7 +172,7 @@ class PatternRecommender:
             pattern_id = mapping.get(choice, "adapter")
 
         else:
-            print_fn("\\nStep 2: What behavioral workflow do you need?")
+            print_fn("\nStep 2: What behavioral workflow do you need?")
             print_fn("  [1] Encapsulate interchangeable algorithm variants at runtime")
             print_fn("  [2] Pass request sequentially through a chain of handlers")
             print_fn("  [3] Encapsulate actions with undo/redo/queue capabilities")

@@ -44,6 +44,7 @@ def build_parser() -> argparse.ArgumentParser:
     # show
     show_p = subparsers.add_parser("show", help="Show pattern details")
     show_p.add_argument("pattern", help="Pattern identifier (e.g. abstract-factory, strategy)")
+    show_p.add_argument("--summary", action="store_true", help="Display a concise summary")
     show_p.add_argument("--json", action="store_true", help="Output as JSON")
 
     # code
@@ -61,7 +62,12 @@ def build_parser() -> argparse.ArgumentParser:
     scaffold_p = subparsers.add_parser("scaffold", help="Generate boilerplate template")
     scaffold_p.add_argument("pattern", help="Pattern identifier")
     scaffold_p.add_argument("--out", "-o", help="Target output file path")
-    scaffold_p.add_argument("--overwrite", action="store_true", help="Overwrite existing destination file")
+    scaffold_p.add_argument(
+        "--overwrite", "--force",
+        dest="overwrite",
+        action="store_true",
+        help="Overwrite existing destination file",
+    )
     scaffold_p.add_argument("--json", action="store_true", help="Output scaffold template as JSON")
 
     # recommend
@@ -70,6 +76,18 @@ def build_parser() -> argparse.ArgumentParser:
     rec_p.add_argument("--interactive", "-i", action="store_true", help="Launch interactive diagnostic wizard")
     rec_p.add_argument("--top", type=int, default=3, help="Max recommendations to return (default: 3)")
     rec_p.add_argument("--json", action="store_true", help="Output recommendations as JSON")
+
+    # search (alias to recommend --query)
+    search_p = subparsers.add_parser("search", help="Search patterns by problem description or keywords")
+    search_p.add_argument("query", help="Problem description or search keyword")
+    search_p.add_argument("--top", type=int, default=3, help="Max recommendations to return (default: 3)")
+    search_p.add_argument("--json", action="store_true", help="Output recommendations as JSON")
+    search_p.set_defaults(interactive=False)
+
+    # diagnose (alias to recommend --interactive)
+    diagnose_p = subparsers.add_parser("diagnose", help="Launch interactive diagnostic wizard")
+    diagnose_p.add_argument("--json", action="store_true", help="Output recommendations as JSON")
+    diagnose_p.set_defaults(interactive=True, query=None, top=3)
 
     # run
     run_p = subparsers.add_parser("run", help="Execute runnable pattern example")
@@ -121,6 +139,21 @@ def handle_show(args: argparse.Namespace) -> int:
     if not pattern:
         sys.stderr.write(_pattern_not_found_error(args.pattern, registry))
         return 1
+
+    if getattr(args, "summary", False):
+        if args.json:
+            data = {
+                "id": pattern.id,
+                "name": pattern.name,
+                "chinese_name": pattern.chinese_name,
+                "category": pattern.category.value,
+                "intent": pattern.intent,
+            }
+            print(json.dumps(data, indent=2, ensure_ascii=False))
+            return 0
+        print(f"\n# {pattern.name} / {pattern.chinese_name} [{pattern.category.value.upper()}]")
+        print(f"\n## 意图 (Intent)\n{pattern.intent}\n")
+        return 0
 
     if args.json:
         data = {
@@ -204,6 +237,9 @@ def handle_scaffold(args: argparse.Namespace) -> int:
         return 0
 
     target = Path(args.out)
+    if target.is_dir():
+        sys.stderr.write(f"Error: Target path '{args.out}' is a directory, not a file.\n")
+        return 1
     if target.exists() and not args.overwrite:
         sys.stderr.write(f"Error: Target file '{args.out}' already exists. Use --overwrite to replace it.\n")
         return 1
@@ -218,13 +254,17 @@ def handle_recommend(args: argparse.Namespace) -> int:
     registry = load_default_registry()
     recommender = PatternRecommender(registry)
 
-    if args.interactive:
-        results = recommender.run_interactive_wizard()
-    elif args.query is not None:
+    if getattr(args, "interactive", False):
+        try:
+            results = recommender.run_interactive_wizard()
+        except (KeyboardInterrupt, EOFError):
+            print("\nDiagnostic cancelled.")
+            return 0
+    elif getattr(args, "query", None) is not None:
         if not args.query.strip():
             sys.stderr.write("Error: Please provide a query describing your design problem.\n")
             return 1
-        results = recommender.recommend(args.query, top_k=args.top)
+        results = recommender.recommend(args.query, top_k=getattr(args, "top", 3))
     else:
         sys.stderr.write("Error: Specify a query with -q/--query or run --interactive.\n")
         return 1
@@ -297,6 +337,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         "code": handle_code,
         "scaffold": handle_scaffold,
         "recommend": handle_recommend,
+        "search": handle_recommend,
+        "diagnose": handle_recommend,
         "run": handle_run,
     }
 
@@ -305,7 +347,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         parser.print_help()
         return 1
 
-    return handler(args)
+    try:
+        return handler(args)
+    except (KeyboardInterrupt, EOFError):
+        return 0
 
 
 if __name__ == "__main__":

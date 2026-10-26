@@ -37,3 +37,16 @@ def test_interactive_wizard_flow():
     )
     assert len(results) > 0
     assert results[0].pattern.id == "strategy"
+
+
+def test_recommend_unspaced_chinese_query():
+    registry = load_default_registry()
+    recommender = PatternRecommender(registry)
+
+    results = recommender.recommend("我想用工厂方法")
+    assert len(results) > 0
+    assert results[0].pattern.id == "factory-method"
+
+    results_af = recommender.recommend("需要抽象工厂")
+    assert len(results_af) > 0
+    assert results_af[0].pattern.id == "abstract-factory"

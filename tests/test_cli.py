@@ -268,3 +268,74 @@ def test_python_module_standalone(tmp_path):
     assert proc.returncode == 0
     data = json.loads(proc.stdout)
     assert len(data) == 22
+
+
+def test_cli_search_subcommand(capsys):
+    ret = main(["search", "swap algorithm"])
+    assert ret == 0
+    captured = capsys.readouterr()
+    assert "Strategy" in captured.out
+
+
+def test_cli_search_json(capsys):
+    ret = main(["search", "swap algorithm", "--json"])
+    assert ret == 0
+    captured = capsys.readouterr()
+    data = json.loads(captured.out)
+    assert len(data) > 0
+    assert data[0]["id"] == "strategy"
+
+
+def test_cli_diagnose_subcommand(monkeypatch, capsys):
+    mock_inputs = iter(["1", "2"])
+    monkeypatch.setattr("builtins.input", lambda _: next(mock_inputs))
+    ret = main(["diagnose"])
+    assert ret == 0
+    captured = capsys.readouterr()
+    assert "Factory Method" in captured.out
+
+
+def test_cli_diagnose_interrupted(monkeypatch):
+    def raise_interrupt(_):
+        raise KeyboardInterrupt()
+
+    monkeypatch.setattr("builtins.input", raise_interrupt)
+    ret = main(["diagnose"])
+    assert ret == 0
+
+
+def test_cli_scaffold_force(tmp_path):
+    target = tmp_path / "factory.py"
+    target.write_text("existing code")
+    ret = main(["scaffold", "factory-method", "--out", str(target), "--force"])
+    assert ret == 0
+    assert "Factory Method" in target.read_text(encoding="utf-8")
+
+
+def test_cli_scaffold_target_is_dir(tmp_path, capsys):
+    dir_path = tmp_path / "somedir"
+    dir_path.mkdir()
+    ret = main(["scaffold", "factory-method", "--out", str(dir_path)])
+    assert ret == 1
+    captured = capsys.readouterr()
+    assert captured.err == f"Error: Target path '{dir_path}' is a directory, not a file.\n"
+
+
+def test_cli_show_summary(capsys):
+    ret = main(["show", "factory-method", "--summary"])
+    assert ret == 0
+    captured = capsys.readouterr()
+    assert "Factory Method" in captured.out
+    assert "意图 (Intent)" in captured.out
+    assert "## 优缺点" not in captured.out
+    assert "## 与其他模式的关系" not in captured.out
+
+
+def test_cli_show_summary_json(capsys):
+    ret = main(["show", "factory-method", "--summary", "--json"])
+    assert ret == 0
+    captured = capsys.readouterr()
+    data = json.loads(captured.out)
+    assert data["id"] == "factory-method"
+    assert "intent" in data
+    assert "problem" not in data

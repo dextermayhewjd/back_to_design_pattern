@@ -93,6 +93,17 @@ To run a step-by-step diagnostic questionnaire:
 bin/pat diagnose
 ```
 
+#### F. Inspecting Implementation Code & Executing Runnable Examples
+Inspect pure conceptual or real-world implementation code:
+```bash
+bin/pat code strategy --type conceptual
+bin/pat code strategy --type realworld --json
+```
+Execute runnable pattern examples directly:
+```bash
+bin/pat run singleton --type conceptual
+```
+
 ---
 
 ## 3. Pattern Catalog Reference

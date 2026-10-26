@@ -48,3 +48,10 @@ def test_readme_md_valid():
     assert "Architecture" in content or "architecture" in content
     for cmd in ["list", "show", "search", "recommend", "scaffold", "diagnose"]:
         assert cmd in content
+
+
+def test_version_synchronization():
+    import design_patterns
+    manifest = json.loads(Path("plugin.json").read_text(encoding="utf-8"))
+    assert design_patterns.__version__ == "0.1.0"
+    assert manifest["version"] == "0.1.0"
