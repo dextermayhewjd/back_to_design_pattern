@@ -111,6 +111,17 @@ def test_cli_code_json(capsys):
     captured = capsys.readouterr()
     data = json.loads(captured.out)
     assert data["id"] == "singleton"
+    assert "code" in data
+    # Defaults to pythonic (3.12 on 3.12, 3.10 on 3.10)
+    assert "ServiceRegistry" in data["code"] or "get_settings" in data["code"]
+
+
+def test_cli_code_json_conceptual(capsys):
+    ret = main(["code", "singleton", "--type", "conceptual", "--json"])
+    assert ret == 0
+    captured = capsys.readouterr()
+    data = json.loads(captured.out)
+    assert data["id"] == "singleton"
     assert data["type"] == "conceptual"
     assert "code" in data
     assert "class Singleton" in data["code"]
@@ -339,3 +350,156 @@ def test_cli_show_summary_json(capsys):
     assert data["id"] == "factory-method"
     assert "intent" in data
     assert "problem" not in data
+
+
+def test_cli_code_defaults_to_pythonic(capsys):
+    ret = main(["code", "strategy"])
+    assert ret == 0
+    captured = capsys.readouterr()
+    assert "Callable" in captured.out or "def " in captured.out
+
+
+def test_cli_code_py_options(capsys):
+    # Test classic
+    ret = main(["code", "strategy", "--py", "classic"])
+    assert ret == 0
+    out_classic = capsys.readouterr().out
+    assert "class Strategy(ABC)" in out_classic
+
+    # Test 3.10
+    ret = main(["code", "strategy", "--py", "3.10"])
+    assert ret == 0
+    out_310 = capsys.readouterr().out
+    assert "Callable" in out_310
+
+    # Test 3.12
+    ret = main(["code", "strategy", "--py", "3.12"])
+    assert ret == 0
+    out_312 = capsys.readouterr().out
+    assert "[" in out_312 and "]" in out_312  # PEP 695 generics
+
+
+def test_cli_code_type_backward_compatibility(capsys):
+    # --type conceptual maps to classic
+    ret = main(["code", "strategy", "--type", "conceptual"])
+    assert ret == 0
+    assert "class Strategy(ABC)" in capsys.readouterr().out
+
+    # --type classic-oop maps to classic
+    ret = main(["code", "strategy", "--type", "classic-oop"])
+    assert ret == 0
+    assert "class Strategy(ABC)" in capsys.readouterr().out
+
+    # --type pythonic maps to pythonic
+    ret = main(["code", "strategy", "--type", "pythonic"])
+    assert ret == 0
+    assert "Callable" in capsys.readouterr().out
+
+    # --type realworld maps to pythonic
+    ret = main(["code", "strategy", "--type", "realworld"])
+    assert ret == 0
+    assert "Callable" in capsys.readouterr().out
+
+
+def test_cli_run_version_gating(monkeypatch, capsys):
+    # Simulate Python 3.10 runtime
+    monkeypatch.setattr(sys, "version_info", (3, 10, 8, "final", 0))
+    monkeypatch.setattr(sys, "version", "3.10.8 (main, Oct 2023)")
+    ret = main(["run", "strategy", "--py", "3.12"])
+    assert ret == 1
+    captured = capsys.readouterr()
+    assert "Error: Python 3.12+ is required to execute PEP 695 syntax (current: 3.10.8)." in captured.err
+
+
+def test_cli_analyze_file(tmp_path, capsys):
+    sample = tmp_path / "calculator.py"
+    sample.write_text("""
+class TaxCalculator:
+    def execute(self, amount: float) -> float:
+        return amount * 0.1
+""")
+    ret = main(["analyze", str(sample)])
+    assert ret == 0
+    captured = capsys.readouterr()
+    assert "Scanned 1 files" in captured.out
+    assert "SINGLE_METHOD_CLASS" in captured.out
+    assert "TaxCalculator" in captured.out
+    assert "strategy" in captured.out
+    assert "Python 3.10+" in captured.out
+
+
+def test_cli_analyze_directory(tmp_path, capsys):
+    file1 = tmp_path / "calc.py"
+    file1.write_text("""
+class TaxCalculator:
+    def execute(self, amount: float) -> float:
+        return amount * 0.1
+""")
+    file2 = tmp_path / "helper.py"
+    file2.write_text("def helper(): pass\n")
+
+    ret = main(["analyze", str(tmp_path)])
+    assert ret == 0
+    captured = capsys.readouterr()
+    assert "Scanned 2 files" in captured.out
+    assert "SINGLE_METHOD_CLASS" in captured.out
+
+
+def test_cli_analyze_missing_path(capsys):
+    ret = main(["analyze", "non_existent_path_xyz123.py"])
+    assert ret == 1
+    captured = capsys.readouterr()
+    assert "Error: Target path 'non_existent_path_xyz123.py' does not exist." in captured.err
+
+
+def test_cli_analyze_syntax_error(tmp_path, capsys):
+    broken = tmp_path / "broken.py"
+    broken.write_text("def invalid_syntax(:\n")
+
+    ret = main(["analyze", str(broken)])
+    assert ret == 0
+    captured = capsys.readouterr()
+    assert "Syntax Errors:" in captured.out
+    assert "broken.py" in captured.out
+
+
+def test_cli_analyze_json(tmp_path, capsys):
+    sample = tmp_path / "sample.py"
+    sample.write_text("""
+class SingleHandler:
+    def handle(self, req: str) -> str:
+        return req
+""")
+    ret = main(["analyze", str(sample), "--json"])
+    assert ret == 0
+    data = json.loads(capsys.readouterr().out)
+    assert data["files_scanned"] == 1
+    assert len(data["code_smells"]) >= 1
+    assert data["code_smells"][0]["smell_type"] == "SINGLE_METHOD_CLASS"
+
+
+def test_cli_recommend_version_badges(capsys):
+    ret = main(["recommend", "-q", "swap interchangeable algorithms at runtime"])
+    assert ret == 0
+    captured = capsys.readouterr()
+    assert "Strategy" in captured.out
+    assert "[Best Practice: Python 3.10+" in captured.out or "[Requires Python 3.10+]" in captured.out
+
+
+def test_cli_search_version_badges(capsys):
+    ret = main(["search", "strategy"])
+    assert ret == 0
+    captured = capsys.readouterr()
+    assert "Strategy" in captured.out
+    assert "[Best Practice: Python 3.10+" in captured.out or "[Requires Python 3.10+]" in captured.out
+
+
+def test_cli_show_evolution_summary(capsys):
+    ret = main(["show", "strategy"])
+    assert ret == 0
+    captured = capsys.readouterr()
+    assert "版本演进 (Version Evolution):" in captured.out
+    assert "Classic GoF:" in captured.out
+    assert "Python 3.10+:" in captured.out
+    assert "Python 3.12+:" in captured.out
+
