@@ -3,7 +3,6 @@
   "displayName": "Design Patterns CLI & Catalog",
   "version": "0.1.0",
   "description": "RefactoringGuru-faithful Python GoF Design Patterns CLI, diagnostic recommender, and code generator for developers and AI agents.",
-  "category": "Developer Tools",
   "keywords": [
     "design-patterns",
     "gof",
@@ -22,9 +21,6 @@
   "license": "MIT",
   "suggestedPrompts": [
     "Recommend a design pattern for state machine transitions",
-    "Scaffold the Observer pattern for event handling in Python",
-    "Show how the Strategy pattern is implemented in Python",
-    "Diagnose an architectural problem and suggest the right pattern",
     "Analyze our codebase for design patterns and Java-in-Python anti-patterns",
     "Compare Strategy pattern across classic, Python 3.10, and Python 3.12 implementations"
   ]
